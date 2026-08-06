@@ -1,0 +1,45 @@
+package dev.raymond.voxwrite
+
+import android.Manifest
+import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Bundle
+import android.provider.Settings
+import android.view.inputmethod.InputMethodManager
+import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.MethodChannel
+
+class MainActivity : FlutterActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), 1001)
+        }
+    }
+
+    override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
+        super.configureFlutterEngine(flutterEngine)
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "dev.raymond.voxwrite/android_platform"
+        ).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "openInputMethodSettings" -> {
+                    startActivity(Intent(Settings.ACTION_INPUT_METHOD_SETTINGS))
+                    result.success(null)
+                }
+                "showInputMethodPicker" -> {
+                    val manager = getSystemService(Context.INPUT_METHOD_SERVICE)
+                        as InputMethodManager
+                    manager.showInputMethodPicker()
+                    result.success(null)
+                }
+                else -> result.notImplemented()
+            }
+        }
+    }
+}
