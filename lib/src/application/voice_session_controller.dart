@@ -45,8 +45,7 @@ class VoiceSessionController extends Notifier<VoiceSessionState> {
   }
 
   Future<void> shortcutDown() async {
-    if (_startOperation != null ||
-        state.phase == VoiceSessionPhase.recording) {
+    if (_startOperation != null || state.phase == VoiceSessionPhase.recording) {
       _stopOnShortcutUp = true;
       return;
     }
@@ -163,7 +162,7 @@ class VoiceSessionController extends Notifier<VoiceSessionState> {
         apiKey: apiKey,
         baseUrl: cloud.baseUrl,
         model: cloud.speechModel.trim().isEmpty
-            ? 'qwen3-asr-flash'
+            ? cloud.vendor.defaultSpeechModel
             : cloud.speechModel.trim(),
       );
       final transcript = await recognizer.transcribe(
@@ -177,6 +176,9 @@ class VoiceSessionController extends Notifier<VoiceSessionState> {
         apiKey: apiKey,
         baseUrl: cloud.baseUrl,
         model: cloud.writingModel,
+        enableThinking: cloud.vendor == CloudProviderVendor.alibaba
+            ? false
+            : null,
       );
       final output = await transformer.transform(
         WritingRequest(

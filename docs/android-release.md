@@ -23,13 +23,13 @@ flutter build apk --release --split-per-abi
 flutter build apk --release
 ```
 
-Version `0.3.3+12` improves Delete-key compatibility with OEM editors by using the widely supported UTF-16 deletion API, preserving supplementary characters, and falling back to Backspace key events when needed. It produces these signed artifacts in `dist/android/`:
+Version `0.3.9+18` strengthens spoken-filler cleanup in Dictation and Translation while preserving meaningful references, logical connectors, and intentional emphasis. It also keeps the Android input method limited to Voice, Pinyin, and English modes. It produces these signed artifacts in `dist/android/`:
 
-- `VoxWrite-0.3.3-arm64-v8a-release.apk` — recommended for current Android phones; installed version code 2012
-- `VoxWrite-0.3.3-armeabi-v7a-release.apk` — legacy 32-bit ARM; installed version code 1012
-- `VoxWrite-0.3.3-x86_64-release.apk` — x86_64 emulators/devices; installed version code 4012
-- `VoxWrite-0.3.3-universal-release.apk` — largest, architecture-independent installer; version code 12
-- `SHA256SUMS` and `SHA256SUMS-0.3.3` — latest and version-pinned integrity hashes
+- `VoxWrite-0.3.9-arm64-v8a-release.apk` — recommended for current Android phones; installed version code 2018
+- `VoxWrite-0.3.9-armeabi-v7a-release.apk` — legacy 32-bit ARM; installed version code 1018
+- `VoxWrite-0.3.9-x86_64-release.apk` — x86_64 emulators/devices; installed version code 4018
+- `VoxWrite-0.3.9-universal-release.apk` — largest, architecture-independent installer; version code 18
+- `SHA256SUMS` and `SHA256SUMS-0.3.9` — latest and version-pinned integrity hashes
 
 Keep using the same ABI-specific package for updates. Flutter assigns ABI offsets to split APK version codes, so switching between a split APK and the universal APK is not an interchangeable update path.
 

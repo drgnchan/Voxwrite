@@ -54,3 +54,4 @@ app.*.map.json
 /dist/
 /artifacts/
 /research/typeless/screenshots/
+/.pi/

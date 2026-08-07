@@ -21,7 +21,7 @@ extension CloudProviderVendorDefaults on CloudProviderVendor {
   };
 
   String get defaultSpeechModel => switch (this) {
-    CloudProviderVendor.alibaba => 'qwen3-asr-flash',
+    CloudProviderVendor.alibaba => 'qwen-audio-3.0-asr-flash',
     CloudProviderVendor.doubao => '',
     CloudProviderVendor.custom => '',
   };
@@ -32,7 +32,7 @@ class CloudProviderSettings {
     this.vendor = CloudProviderVendor.alibaba,
     this.baseUrl = 'https://dashscope.aliyuncs.com/compatible-mode/v1',
     this.writingModel = 'qwen-plus',
-    this.speechModel = 'qwen3-asr-flash',
+    this.speechModel = 'qwen-audio-3.0-asr-flash',
   });
 
   final CloudProviderVendor vendor;

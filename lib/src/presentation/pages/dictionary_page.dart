@@ -17,7 +17,7 @@ class DictionaryPage extends ConsumerWidget {
           autofocus: true,
           decoration: const InputDecoration(
             labelText: '名称或专有词',
-            hintText: '例如：qwen3-asr-flash',
+            hintText: '例如：VoxWrite',
           ),
           onSubmitted: (value) => Navigator.pop(context, value),
         ),

@@ -37,15 +37,10 @@ import io.flutter.plugin.common.MethodChannel
 import java.util.concurrent.Executors
 
 class VoxWriteInputMethodService : InputMethodService() {
-    private enum class KeyboardMode(val preferenceValue: String) {
-        VOICE("voice"),
-        PINYIN("pinyin"),
-        ENGLISH("english");
-
-        companion object {
-            fun fromPreference(value: String?): KeyboardMode =
-                entries.firstOrNull { it.preferenceValue == value } ?: VOICE
-        }
+    private enum class KeyboardMode {
+        VOICE,
+        PINYIN,
+        ENGLISH
     }
 
     private val ink = Color.rgb(25, 25, 31)
@@ -66,7 +61,6 @@ class VoxWriteInputMethodService : InputMethodService() {
             preferences.getStringSet(PINYIN_LEARNING_PREFERENCE, emptySet()).orEmpty()
         )
     }
-
     private var flutterEngine: FlutterEngine? = null
     private var channel: MethodChannel? = null
     private var inputRoot: LinearLayout? = null
@@ -94,9 +88,7 @@ class VoxWriteInputMethodService : InputMethodService() {
 
     override fun onCreate() {
         super.onCreate()
-        keyboardMode = KeyboardMode.fromPreference(
-            preferences.getString("keyboard_mode", null)
-        )
+        removeLegacyClipboardHistory()
         val loader = FlutterInjector.instance().flutterLoader()
         loader.startInitialization(applicationContext)
         loader.ensureInitializationComplete(applicationContext, null)
@@ -129,9 +121,18 @@ class VoxWriteInputMethodService : InputMethodService() {
         super.onStartInput(attribute, restarting)
         pinyinComposition.clear()
         currentCandidates = emptyList()
+        keyboardMode = KeyboardMode.VOICE
         symbolLayout = false
         updateEnglishShiftFromEditor()
-        if (inputRoot != null && keyboardMode != KeyboardMode.VOICE) {
+        if (inputRoot != null) renderKeyboard()
+    }
+
+    override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
+        super.onStartInputView(info, restarting)
+        if (keyboardMode != KeyboardMode.VOICE) {
+            commitRawPinyinIfNeeded()
+            keyboardMode = KeyboardMode.VOICE
+            symbolLayout = false
             renderKeyboard()
         }
     }
@@ -228,7 +229,7 @@ class VoxWriteInputMethodService : InputMethodService() {
             keyboardModeButtons[mode] = button
             switcher.addView(button, LinearLayout.LayoutParams(0, dp(38), 1f))
         }
-        row.addView(switcher, LinearLayout.LayoutParams(dp(196), dp(44)))
+        row.addView(switcher, LinearLayout.LayoutParams(dp(198), dp(44)))
         return row
     }
 
@@ -238,7 +239,6 @@ class VoxWriteInputMethodService : InputMethodService() {
         keyboardMode = mode
         symbolLayout = false
         if (mode == KeyboardMode.ENGLISH) updateEnglishShiftFromEditor()
-        preferences.edit().putString("keyboard_mode", mode.preferenceValue).apply()
         inputRoot?.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
         renderKeyboard()
     }
@@ -1184,6 +1184,13 @@ class VoxWriteInputMethodService : InputMethodService() {
                 setRecordingState(false, "输入法语音服务不可用")
             }
         }
+    }
+
+    private fun removeLegacyClipboardHistory() {
+        preferences.edit().apply {
+            remove("clipboard_history_count_v1")
+            repeat(20) { remove("clipboard_history_item_v1_$it") }
+        }.apply()
     }
 
     private fun dp(value: Int): Int =

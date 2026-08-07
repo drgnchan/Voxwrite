@@ -9,6 +9,7 @@ class OpenAiCompatibleWritingProvider implements WritingTransformer {
     required this.apiKey,
     required this.baseUrl,
     required this.model,
+    this.enableThinking,
     WritingPromptBuilder promptBuilder = const WritingPromptBuilder(),
   }) : _dio = dio,
        _promptBuilder = promptBuilder;
@@ -18,6 +19,7 @@ class OpenAiCompatibleWritingProvider implements WritingTransformer {
   final String apiKey;
   final String baseUrl;
   final String model;
+  final bool? enableThinking;
 
   @override
   Future<String> transform(WritingRequest request) async {
@@ -33,6 +35,7 @@ class OpenAiCompatibleWritingProvider implements WritingTransformer {
       data: <String, dynamic>{
         'model': model,
         'temperature': 0.2,
+        if (enableThinking != null) 'enable_thinking': enableThinking,
         'messages': <Map<String, String>>[
           <String, String>{
             'role': 'system',

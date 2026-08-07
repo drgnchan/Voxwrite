@@ -142,7 +142,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               const SizedBox(height: 24),
               _SectionCard(
                 title: '云端 Provider',
-                subtitle: '文本处理采用 OpenAI 兼容接口；语音识别按厂商协议单独适配。',
+                subtitle: '文本处理采用 OpenAI 兼容接口；Qwen-Audio 语音识别自动改用百炼原生接口。',
                 child: Column(
                   children: [
                     DropdownButtonFormField<CloudProviderVendor>(
@@ -191,7 +191,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                       initialValue: cloud.speechModel,
                       decoration: const InputDecoration(
                         labelText: '语音识别模型',
-                        hintText: '将在接入厂商语音协议时配置',
+                        hintText: '推荐 qwen-audio-3.0-asr-flash',
+                        helperText: '个人词典会作为即时热词提交给支持该能力的模型。',
                         border: OutlineInputBorder(),
                       ),
                       onChanged: (value) =>

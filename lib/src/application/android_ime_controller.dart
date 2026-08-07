@@ -208,6 +208,9 @@ class AndroidImeController {
         model: cloud.writingModel.trim().isEmpty
             ? cloud.vendor.defaultWritingModel
             : cloud.writingModel.trim(),
+        enableThinking: cloud.vendor == CloudProviderVendor.alibaba
+            ? false
+            : null,
       );
       final output = await transformer.transform(
         WritingRequest(
