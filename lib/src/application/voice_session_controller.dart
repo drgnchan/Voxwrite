@@ -136,7 +136,7 @@ class VoiceSessionController extends Notifier<VoiceSessionState> {
         throw const CloudProviderException('录音太短，请重新说一次。');
       }
 
-      final runtime = ref.read(runtimeSettingsProvider);
+      final runtime = await ref.read(runtimeSettingsProvider.future);
       final cloud = runtime.cloud;
       final personalDictionary = await ref.read(
         personalDictionaryProvider.future,
@@ -240,9 +240,8 @@ class VoiceSessionController extends Notifier<VoiceSessionState> {
     int generation,
   ) async {
     await _stopVoiceActivityMonitoring();
-    final autoStopOnSilence = ref
-        .read(runtimeSettingsProvider)
-        .autoStopOnSilence;
+    final runtime = await ref.read(runtimeSettingsProvider.future);
+    final autoStopOnSilence = runtime.autoStopOnSilence;
     _voiceActivityDetector = VoiceActivityDetector(
       policy: autoStopOnSilence
           ? const VoiceActivityPolicy()

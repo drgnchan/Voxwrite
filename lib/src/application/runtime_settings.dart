@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -88,70 +86,94 @@ Future<RuntimeSettings> loadRuntimeSettings(
 }
 
 final runtimeSettingsProvider =
-    NotifierProvider<RuntimeSettingsController, RuntimeSettings>(
+    AsyncNotifierProvider<RuntimeSettingsController, RuntimeSettings>(
       RuntimeSettingsController.new,
     );
 
-class RuntimeSettingsController extends Notifier<RuntimeSettings> {
+class RuntimeSettingsController extends AsyncNotifier<RuntimeSettings> {
   SharedPreferencesAsync? _preferencesInstance;
+  Future<void> _writeQueue = Future<void>.value();
 
   SharedPreferencesAsync get _preferences =>
       _preferencesInstance ??= SharedPreferencesAsync();
 
   @override
-  RuntimeSettings build() {
-    unawaited(_load().catchError((_) {}));
-    return const RuntimeSettings();
-  }
+  Future<RuntimeSettings> build() => loadRuntimeSettings(_preferences);
 
-  Future<void> _load() async {
-    state = await loadRuntimeSettings(_preferences, defaults: state);
-  }
-
-  void setGlobalShortcutEnabled(bool enabled) {
-    state = state.copyWith(globalShortcutEnabled: enabled);
-    unawaited(_preferences.setBool(runtimeGlobalShortcutStorageKey, enabled));
-  }
-
-  void setAutoStopOnSilence(bool enabled) {
-    state = state.copyWith(autoStopOnSilence: enabled);
-    unawaited(_preferences.setBool(runtimeAutoStopStorageKey, enabled));
-  }
-
-  void setTranslationTarget(String target) {
-    state = state.copyWith(translationTarget: target);
-    unawaited(_preferences.setString(translationTargetStorageKey, target));
-  }
-
-  void setVendor(CloudProviderVendor vendor) {
-    state = state.copyWith(
-      cloud: state.cloud.copyWith(
-        vendor: vendor,
-        baseUrl: vendor.defaultBaseUrl,
-        writingModel: vendor.defaultWritingModel,
-        speechModel: vendor.defaultSpeechModel,
-      ),
+  Future<void> setGlobalShortcutEnabled(bool enabled) {
+    final current = state.requireValue;
+    state = AsyncData(current.copyWith(globalShortcutEnabled: enabled));
+    return _enqueueWrite(
+      () => _preferences.setBool(runtimeGlobalShortcutStorageKey, enabled),
     );
-    unawaited(_persistCloud());
   }
 
-  void updateCloud({
+  Future<void> setAutoStopOnSilence(bool enabled) {
+    final current = state.requireValue;
+    state = AsyncData(current.copyWith(autoStopOnSilence: enabled));
+    return _enqueueWrite(
+      () => _preferences.setBool(runtimeAutoStopStorageKey, enabled),
+    );
+  }
+
+  Future<void> setTranslationTarget(String target) {
+    final current = state.requireValue;
+    state = AsyncData(current.copyWith(translationTarget: target));
+    return _enqueueWrite(
+      () => _preferences.setString(translationTargetStorageKey, target),
+    );
+  }
+
+  Future<void> setVendor(CloudProviderVendor vendor) {
+    final current = state.requireValue;
+    final cloud = current.cloud.copyWith(
+      vendor: vendor,
+      baseUrl: vendor.defaultBaseUrl,
+      writingModel: vendor.defaultWritingModel,
+      speechModel: vendor.defaultSpeechModel,
+    );
+    state = AsyncData(current.copyWith(cloud: cloud));
+    return _enqueueWrite(() => _persistCloud(cloud));
+  }
+
+  Future<void> updateCloud({
     String? baseUrl,
     String? writingModel,
     String? speechModel,
   }) {
-    state = state.copyWith(
-      cloud: state.cloud.copyWith(
-        baseUrl: baseUrl,
-        writingModel: writingModel,
-        speechModel: speechModel,
-      ),
+    final current = state.requireValue;
+    final cloud = current.cloud.copyWith(
+      baseUrl: baseUrl,
+      writingModel: writingModel,
+      speechModel: speechModel,
     );
-    unawaited(_persistCloud());
+    state = AsyncData(current.copyWith(cloud: cloud));
+    return _enqueueWrite(() async {
+      if (baseUrl != null) {
+        await _preferences.setString(runtimeCloudBaseUrlStorageKey, baseUrl);
+      }
+      if (writingModel != null) {
+        await _preferences.setString(
+          runtimeWritingModelStorageKey,
+          writingModel,
+        );
+      }
+      if (speechModel != null) {
+        await _preferences.setString(runtimeSpeechModelStorageKey, speechModel);
+      }
+    });
   }
 
-  Future<void> _persistCloud() async {
-    final cloud = state.cloud;
+  Future<void> _enqueueWrite(Future<void> Function() write) {
+    final operation = _writeQueue.then((_) => write());
+    _writeQueue = operation.then<void>(
+      (_) {},
+      onError: (Object _, StackTrace _) {},
+    );
+    return operation;
+  }
+
+  Future<void> _persistCloud(CloudProviderSettings cloud) async {
     await Future.wait<void>([
       _preferences.setString(runtimeCloudVendorStorageKey, cloud.vendor.name),
       _preferences.setString(runtimeCloudBaseUrlStorageKey, cloud.baseUrl),

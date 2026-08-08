@@ -1,7 +1,7 @@
 name: voxwrite
 description: "Cross-platform cloud voice writing assistant"
 publish_to: 'none'
-version: 0.3.9+18
+version: 0.3.10+19
 
 environment:
   sdk: ^3.10.1
@@ -21,6 +21,7 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  shared_preferences_platform_interface: ^2.4.1
 
 flutter:
   uses-material-design: true

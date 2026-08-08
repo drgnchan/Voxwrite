@@ -126,8 +126,16 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final settings = ref.watch(runtimeSettingsProvider);
+    final settingsState = ref.watch(runtimeSettingsProvider);
     final controller = ref.read(runtimeSettingsProvider.notifier);
+    final settings = settingsState.value;
+    if (settings == null) {
+      return Center(
+        child: settingsState.hasError
+            ? Text('读取本机设置失败：${settingsState.error}')
+            : const CircularProgressIndicator(),
+      );
+    }
     final cloud = settings.cloud;
 
     return SingleChildScrollView(
@@ -159,7 +167,9 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                           ),
                       ],
                       onChanged: (vendor) {
-                        if (vendor != null) controller.setVendor(vendor);
+                        if (vendor != null) {
+                          unawaited(controller.setVendor(vendor));
+                        }
                       },
                     ),
                     const SizedBox(height: 14),
@@ -170,8 +180,9 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                         labelText: '兼容接口 Base URL',
                         border: OutlineInputBorder(),
                       ),
-                      onChanged: (value) =>
-                          controller.updateCloud(baseUrl: value),
+                      onChanged: (value) {
+                        unawaited(controller.updateCloud(baseUrl: value));
+                      },
                     ),
                     const SizedBox(height: 14),
                     TextFormField(
@@ -182,8 +193,9 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                         hintText: '例如 qwen-plus',
                         border: OutlineInputBorder(),
                       ),
-                      onChanged: (value) =>
-                          controller.updateCloud(writingModel: value),
+                      onChanged: (value) {
+                        unawaited(controller.updateCloud(writingModel: value));
+                      },
                     ),
                     const SizedBox(height: 14),
                     TextFormField(
@@ -195,8 +207,9 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                         helperText: '个人词典会作为即时热词提交给支持该能力的模型。',
                         border: OutlineInputBorder(),
                       ),
-                      onChanged: (value) =>
-                          controller.updateCloud(speechModel: value),
+                      onChanged: (value) {
+                        unawaited(controller.updateCloud(speechModel: value));
+                      },
                     ),
                     const SizedBox(height: 14),
                     Row(
@@ -252,7 +265,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                       ],
                       onChanged: (target) {
                         if (target != null) {
-                          controller.setTranslationTarget(target);
+                          unawaited(controller.setTranslationTarget(target));
                         }
                       },
                     ),
@@ -262,7 +275,9 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                       title: const Text('说完后自动停止'),
                       subtitle: const Text('检测到语音后，连续静音约 1.4 秒自动处理；最长录音 2 分钟。'),
                       value: settings.autoStopOnSilence,
-                      onChanged: controller.setAutoStopOnSilence,
+                      onChanged: (enabled) {
+                        unawaited(controller.setAutoStopOnSilence(enabled));
+                      },
                     ),
                   ],
                 ),
@@ -286,7 +301,11 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                         ),
                         subtitle: const Text('启用后将控制录音、云端识别与文字写入。'),
                         value: settings.globalShortcutEnabled,
-                        onChanged: controller.setGlobalShortcutEnabled,
+                        onChanged: (enabled) {
+                          unawaited(
+                            controller.setGlobalShortcutEnabled(enabled),
+                          );
+                        },
                       ),
                       if (_launchAtLoginSupported) ...[
                         const Divider(),

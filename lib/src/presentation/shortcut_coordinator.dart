@@ -126,7 +126,7 @@ class _ShortcutCoordinatorState extends ConsumerState<ShortcutCoordinator> {
 
   bool get _shortcutShouldBeEnabled =>
       (Platform.isMacOS || Platform.isWindows) &&
-      ref.read(runtimeSettingsProvider).globalShortcutEnabled;
+      (ref.read(runtimeSettingsProvider).value?.globalShortcutEnabled ?? false);
 
   Future<void> _showPermissionNotice({
     required String code,
@@ -179,7 +179,7 @@ class _ShortcutCoordinatorState extends ConsumerState<ShortcutCoordinator> {
         (Platform.isMacOS || Platform.isWindows) &&
         ref.watch(
           runtimeSettingsProvider.select(
-            (value) => value.globalShortcutEnabled,
+            (value) => value.value?.globalShortcutEnabled ?? false,
           ),
         );
     WidgetsBinding.instance.addPostFrameCallback((_) {
