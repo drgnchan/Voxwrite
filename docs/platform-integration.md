@@ -23,13 +23,14 @@ The native bridge captures the foreground window when recording starts and sends
 
 1. Open VoxWrite once and grant Microphone permission.
 2. Save the API Key in VoxWrite on that Android device; secrets do not sync from desktop.
-3. In Settings, choose **启用输入法** and enable **VoxWrite 语音输入**.
-4. Choose **选择 VoxWrite** to make it the active input method.
-5. The input method opens in **语音** each time; use the top switcher to choose **拼音** or **EN** for the current input session.
-6. In Voice mode, select Dictation, Translation, or Ask and start speaking.
-7. In Pinyin mode, type full Pinyin or a continuous multi-word sentence and tap a candidate or press Space to choose the first candidate. Explicit candidate choices are learned locally; Backspace edits the active composition before deleting committed text.
-8. In English mode, use Shift for one uppercase letter, double-tap Shift for Caps Lock, and use `?123` for numbers and symbols.
-9. In Voice mode, tap Delete to remove one character, or hold Delete until the haptic cue and swipe upward to clear the entire current field. Holding and releasing without the upward swipe cancels clearing.
+3. Optionally fill in **领域背景** in Settings with your professional field or technical stack; it is used as contextual help for recognition and cleanup, not as an instruction.
+4. In Settings, choose **启用输入法** and enable **VoxWrite 语音输入**.
+5. Choose **选择 VoxWrite** to make it the active input method.
+6. The input method opens in **语音** each time; use the top switcher to choose **拼音** or **EN** for the current input session.
+7. In Voice mode, select Dictation, Translation, or Ask and start speaking.
+8. In Pinyin mode, type full Pinyin or a continuous multi-word sentence and tap a candidate or press Space to choose the first candidate. Explicit candidate choices are learned locally; Backspace edits the active composition before deleting committed text.
+9. In English mode, use Shift for one uppercase letter, double-tap Shift for Caps Lock, and use `?123` for numbers and symbols.
+10. In Voice mode, tap Delete to remove one character, or hold Delete until the haptic cue and swipe upward to clear the entire current field. Holding and releasing without the upward swipe cancels clearing.
 
 The Pinyin lexicon is fully offline and generated from the MIT-licensed jieba and pypinyin projects; its notice is packaged under `assets/licenses/`. Up to 512 candidate-selection preferences are remembered locally; the previously selected keyboard mode is intentionally not remembered. Neither keystrokes nor learned ranking data are sent to a Pinyin service.
 

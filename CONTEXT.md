@@ -36,6 +36,10 @@ _Avoid_: Text box, destination app
 The user's collection of names and terms that should be recognized and spelled consistently.
 _Avoid_: Vocabulary list, glossary
 
+**Domain Background**:
+User-authored context about the user's current professional field or subject area, injected as non-authoritative context to disambiguate specialized speech and preserve domain terminology during a Voice Session.
+_Avoid_: System instruction, prompt override, knowledge base
+
 **Writing Profile**:
 The user's learned preferences for tone, structure, formatting, and recurring corrections.
 _Avoid_: AI personality, style model

@@ -29,6 +29,23 @@ void main() {
     expect(settings.cloud.writingModel, 'qwen3.7-flash');
   });
 
+  test('persists and restores the domain background', () async {
+    final firstContainer = ProviderContainer();
+    await firstContainer.read(runtimeSettingsProvider.future);
+    final controller = firstContainer.read(runtimeSettingsProvider.notifier);
+
+    await controller.updateDomainBackground('主要做 Flutter 和 Android 开发');
+    firstContainer.dispose();
+
+    final restartedContainer = ProviderContainer();
+    addTearDown(restartedContainer.dispose);
+    final restored = await restartedContainer.read(
+      runtimeSettingsProvider.future,
+    );
+
+    expect(restored.domainBackground, '主要做 Flutter 和 Android 开发');
+  });
+
   test('serializes model auto-saves and restores the latest value', () async {
     final firstContainer = ProviderContainer();
     await firstContainer.read(runtimeSettingsProvider.future);

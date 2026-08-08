@@ -7,6 +7,7 @@ class WritingRequest {
     this.selectedText,
     this.targetLanguages = const [],
     this.personalDictionary = const [],
+    this.domainBackground = '',
   });
 
   final VoiceMode mode;
@@ -14,6 +15,7 @@ class WritingRequest {
   final String? selectedText;
   final List<String> targetLanguages;
   final List<String> personalDictionary;
+  final String domainBackground;
 }
 
 abstract interface class WritingTransformer {
@@ -25,6 +27,7 @@ abstract interface class SpeechRecognizer {
     required String audioPath,
     String? locale,
     List<String> vocabulary = const [],
+    String domainBackground = '',
   });
 }
 

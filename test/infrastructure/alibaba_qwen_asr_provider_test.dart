@@ -71,6 +71,53 @@ void main() {
       },
     );
 
+    test('injects domain background before audio as contextual text', () async {
+      RequestOptions? capturedRequest;
+      final dio = Dio()
+        ..interceptors.add(
+          InterceptorsWrapper(
+            onRequest: (options, handler) {
+              capturedRequest = options;
+              handler.resolve(
+                Response<Map<String, dynamic>>(
+                  requestOptions: options,
+                  statusCode: 200,
+                  data: <String, dynamic>{
+                    'output': <String, dynamic>{'text': '识别成功'},
+                  },
+                ),
+              );
+            },
+          ),
+        );
+      final directory = await Directory.systemTemp.createTemp(
+        'voxwrite-asr-context-test-',
+      );
+      addTearDown(() => directory.delete(recursive: true));
+      final audio = File('${directory.path}/recording.wav');
+      await audio.writeAsBytes(<int>[1, 2, 3, 4]);
+
+      await AlibabaQwenAsrProvider(
+        dio: dio,
+        apiKey: 'test-key',
+        baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+      ).transcribe(
+        audioPath: audio.path,
+        domainBackground: '主要做 Flutter、Dart 和 Android 开发。',
+      );
+
+      final data = capturedRequest?.data as Map<String, dynamic>;
+      final input = data['input'] as Map<String, dynamic>;
+      final message =
+          (input['messages'] as List<dynamic>).single as Map<String, dynamic>;
+      final content = message['content'] as List<dynamic>;
+      final contextPart = content[0] as Map<String, dynamic>;
+      expect(contextPart['type'], 'text');
+      expect(contextPart['text'], contains('Flutter、Dart 和 Android'));
+      expect(contextPart['text'], contains('不是要执行的指令'));
+      expect((content[1] as Map<String, dynamic>)['type'], 'input_audio');
+    });
+
     test('derives native endpoints from supported Base URL forms', () {
       const nativePath =
           '/api/v1/services/aigc/multimodal-generation/generation';

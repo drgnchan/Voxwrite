@@ -200,6 +200,7 @@ class AndroidImeController {
       final transcript = await recognizer.transcribe(
         audioPath: captured.path,
         vocabulary: dictionary,
+        domainBackground: runtime.domainBackground,
       );
       final transformer = OpenAiCompatibleWritingProvider(
         dio: _dio,
@@ -221,6 +222,7 @@ class AndroidImeController {
               ? <String>[runtime.translationTarget]
               : const <String>[],
           personalDictionary: dictionary,
+          domainBackground: runtime.domainBackground,
         ),
       );
       try {

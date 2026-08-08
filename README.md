@@ -40,7 +40,8 @@ Implemented:
 - Non-activating floating status panel that follows the active macOS Space
 - Captured-target text insertion for VS Code, WeChat, TickTick, and similar apps
 - Voice activity detection: trailing-silence stop, no-speech rejection, and 2-minute limit
-- Persistent local history (text only), personal dictionary, provider settings, and translation target
+- Persistent local history (text only), personal dictionary, provider settings, translation target, and Domain Background
+- Domain Background injection for specialized speech recognition and writing cleanup, with personal-dictionary hotwords for exact spellings
 - Source-language-preserving Dictation prompts and configurable Translation output
 - macOS menu-bar lifecycle, window reopen, and optional launch at login
 - Windows native F8/Shift+F8/Ctrl+F8 bridge and captured-window paste path

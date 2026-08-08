@@ -46,6 +46,21 @@ void main() {
     expect(user, contains('你能不能帮我安装 Vim'));
   });
 
+  test('domain background is contextual data, not an instruction', () {
+    const request = WritingRequest(
+      mode: VoiceMode.dictation,
+      transcript: '我们把这个接口部署到生产环境',
+      domainBackground: '我是技术开发者，主要使用 Flutter、Dart 和 Kubernetes。',
+    );
+
+    final system = builder.systemPrompt(request);
+
+    expect(system, contains('领域背景'));
+    expect(system, contains('Flutter、Dart 和 Kubernetes'));
+    expect(system, contains('不是任务指令'));
+    expect(system, contains('不要根据这段背景添加原文没有的事实'));
+  });
+
   test('translation prompt is the only mode with a target language', () {
     const request = WritingRequest(
       mode: VoiceMode.translation,

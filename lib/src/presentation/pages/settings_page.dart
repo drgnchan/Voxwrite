@@ -249,6 +249,28 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               ),
               const SizedBox(height: 18),
               _SectionCard(
+                title: '领域背景',
+                subtitle: '填写你的专业领域或技术栈，帮助识别和整理专业术语。',
+                child: TextFormField(
+                  key: const ValueKey('domain-background'),
+                  initialValue: settings.domainBackground,
+                  minLines: 3,
+                  maxLines: 6,
+                  maxLength: 1000,
+                  decoration: const InputDecoration(
+                    labelText: '领域背景',
+                    hintText: '例如：我主要做 Flutter、Dart 和 Android 开发。',
+                    helperText: '这是背景信息，不是要执行的指令；不要填写 API Key 或密码。',
+                    border: OutlineInputBorder(),
+                    alignLabelWithHint: true,
+                  ),
+                  onChanged: (value) {
+                    unawaited(controller.updateDomainBackground(value));
+                  },
+                ),
+              ),
+              const SizedBox(height: 18),
+              _SectionCard(
                 title: '语音与语言',
                 subtitle: '口述保持源语言；只有翻译模式使用下方目标语言。',
                 child: Column(

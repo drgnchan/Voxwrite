@@ -23,13 +23,13 @@ flutter build apk --release --split-per-abi
 flutter build apk --release
 ```
 
-Version `0.3.11+20` gives Voice mode the same total height as the Pinyin and English keyboards by expanding and vertically centering its microphone section. Switching among the three modes no longer changes the keyboard window height. It produces these signed artifacts in `dist/android/`:
+Version `0.3.12+21` adds a configurable Domain Background. The saved context is injected into Alibaba Qwen-Audio recognition and writing prompts as non-authoritative context to improve specialized-term handling. It produces these signed artifacts in `dist/android/`:
 
-- `VoxWrite-0.3.11-arm64-v8a-release.apk` — recommended for current Android phones; installed version code 2020
-- `VoxWrite-0.3.11-armeabi-v7a-release.apk` — legacy 32-bit ARM; installed version code 1020
-- `VoxWrite-0.3.11-x86_64-release.apk` — x86_64 emulators/devices; installed version code 4020
-- `VoxWrite-0.3.11-universal-release.apk` — largest, architecture-independent installer; version code 20
-- `SHA256SUMS` and `SHA256SUMS-0.3.11` — latest and version-pinned integrity hashes
+- `VoxWrite-0.3.12-arm64-v8a-release.apk` — recommended for current Android phones; installed version code 2021
+- `VoxWrite-0.3.12-armeabi-v7a-release.apk` — legacy 32-bit ARM; installed version code 1021
+- `VoxWrite-0.3.12-x86_64-release.apk` — x86_64 emulators/devices; installed version code 4021
+- `VoxWrite-0.3.12-universal-release.apk` — largest, architecture-independent installer; version code 21
+- `SHA256SUMS` and `SHA256SUMS-0.3.12` — latest and version-pinned integrity hashes
 
 Keep using the same ABI-specific package for updates. Flutter assigns ABI offsets to split APK version codes, so switching between a split APK and the universal APK is not an interchangeable update path.
 

@@ -8,6 +8,7 @@ const runtimeCloudVendorStorageKey = 'runtime_cloud_vendor';
 const runtimeCloudBaseUrlStorageKey = 'runtime_cloud_base_url';
 const runtimeWritingModelStorageKey = 'runtime_writing_model';
 const runtimeSpeechModelStorageKey = 'runtime_speech_model';
+const runtimeDomainBackgroundStorageKey = 'runtime_domain_background';
 const runtimeGlobalShortcutStorageKey = 'runtime_global_shortcut';
 const runtimeAutoStopStorageKey = 'runtime_auto_stop_silence';
 
@@ -28,18 +29,21 @@ class RuntimeSettings {
     this.globalShortcutEnabled = true,
     this.autoStopOnSilence = true,
     this.translationTarget = 'English',
+    this.domainBackground = '',
   });
 
   final CloudProviderSettings cloud;
   final bool globalShortcutEnabled;
   final bool autoStopOnSilence;
   final String translationTarget;
+  final String domainBackground;
 
   RuntimeSettings copyWith({
     CloudProviderSettings? cloud,
     bool? globalShortcutEnabled,
     bool? autoStopOnSilence,
     String? translationTarget,
+    String? domainBackground,
   }) {
     return RuntimeSettings(
       cloud: cloud ?? this.cloud,
@@ -47,6 +51,7 @@ class RuntimeSettings {
           globalShortcutEnabled ?? this.globalShortcutEnabled,
       autoStopOnSilence: autoStopOnSilence ?? this.autoStopOnSilence,
       translationTarget: translationTarget ?? this.translationTarget,
+      domainBackground: domainBackground ?? this.domainBackground,
     );
   }
 }
@@ -82,6 +87,9 @@ Future<RuntimeSettings> loadRuntimeSettings(
     translationTarget:
         await preferences.getString(translationTargetStorageKey) ??
         defaults.translationTarget,
+    domainBackground:
+        await preferences.getString(runtimeDomainBackgroundStorageKey) ??
+        defaults.domainBackground,
   );
 }
 
@@ -121,6 +129,15 @@ class RuntimeSettingsController extends AsyncNotifier<RuntimeSettings> {
     state = AsyncData(current.copyWith(translationTarget: target));
     return _enqueueWrite(
       () => _preferences.setString(translationTargetStorageKey, target),
+    );
+  }
+
+  Future<void> updateDomainBackground(String background) {
+    final current = state.requireValue;
+    state = AsyncData(current.copyWith(domainBackground: background));
+    return _enqueueWrite(
+      () =>
+          _preferences.setString(runtimeDomainBackgroundStorageKey, background),
     );
   }
 

@@ -168,6 +168,7 @@ class VoiceSessionController extends Notifier<VoiceSessionState> {
       final transcript = await recognizer.transcribe(
         audioPath: audioPath,
         vocabulary: personalDictionary,
+        domainBackground: runtime.domainBackground,
       );
       if (generation != _generation) return;
 
@@ -189,6 +190,7 @@ class VoiceSessionController extends Notifier<VoiceSessionState> {
               ? <String>[runtime.translationTarget]
               : const <String>[],
           personalDictionary: personalDictionary,
+          domainBackground: runtime.domainBackground,
         ),
       );
       if (generation != _generation) return;
