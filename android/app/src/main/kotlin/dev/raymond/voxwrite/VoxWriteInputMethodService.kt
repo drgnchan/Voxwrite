@@ -302,7 +302,17 @@ class VoxWriteInputMethodService : InputMethodService() {
                 dp(30)
             )
         )
-        root.addView(createMicrophoneRow())
+        // Text modes use four 50dp rows plus 4dp spacing. Give Voice mode
+        // the same total content height by expanding the microphone section;
+        // the button stays centered while switching modes no longer resizes
+        // the input method window.
+        root.addView(
+            createMicrophoneRow(),
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(91)
+            )
+        )
         root.addView(createEditingRow())
 
         if (processing) {
