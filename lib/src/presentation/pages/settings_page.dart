@@ -404,23 +404,6 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                   ),
                 ),
               ],
-              const SizedBox(height: 18),
-              const _SectionCard(
-                title: '目标平台',
-                subtitle: '不包含 iOS。系统级输入能力由各平台原生实现。',
-                child: Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
-                  children: [
-                    Chip(avatar: Icon(Icons.laptop_mac), label: Text('macOS')),
-                    Chip(avatar: Icon(Icons.window), label: Text('Windows')),
-                    Chip(
-                      avatar: Icon(Icons.android),
-                      label: Text('Android 输入法'),
-                    ),
-                  ],
-                ),
-              ),
             ],
           ),
         ),
