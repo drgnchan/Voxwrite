@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 import 'package:uuid/uuid.dart';
@@ -39,6 +40,10 @@ abstract interface class AudioCapture {
 }
 
 class FileAudioCapture implements AudioCapture {
+  static const _audioPlaybackChannel = MethodChannel(
+    'dev.raymond.voxwrite/audio_playback',
+  );
+
   FileAudioCapture({
     AudioRecorder? recorder,
     bool verifyPermissionWithRecorder = true,
@@ -54,6 +59,7 @@ class FileAudioCapture implements AudioCapture {
   StreamSubscription<Amplitude>? _amplitudeSubscription;
   String? _path;
   DateTime? _startedAt;
+  bool _audioPlaybackArmed = false;
 
   @override
   Stream<double> get amplitude => _amplitudeController.stream;
@@ -74,17 +80,23 @@ class FileAudioCapture implements AudioCapture {
     final temporaryDirectory = await getTemporaryDirectory();
     _path = '${temporaryDirectory.path}/voxwrite_${const Uuid().v4()}.wav';
     _startedAt = DateTime.now();
-    await _recorder.start(
-      const RecordConfig(
-        encoder: AudioEncoder.wav,
-        sampleRate: 16000,
-        numChannels: 1,
-        autoGain: true,
-        echoCancel: true,
-        noiseSuppress: true,
-      ),
-      path: _path!,
-    );
+    await _beginAudioPlaybackCapture();
+    try {
+      await _recorder.start(
+        const RecordConfig(
+          encoder: AudioEncoder.wav,
+          sampleRate: 16000,
+          numChannels: 1,
+          autoGain: true,
+          echoCancel: true,
+          noiseSuppress: true,
+        ),
+        path: _path!,
+      );
+    } catch (_) {
+      await _endAudioPlaybackCapture();
+      rethrow;
+    }
 
     await _amplitudeSubscription?.cancel();
     _amplitudeSubscription = _recorder
@@ -97,7 +109,12 @@ class FileAudioCapture implements AudioCapture {
     if (!await _recorder.isRecording() || _path == null) {
       throw const AudioCaptureException('当前没有正在进行的录音。');
     }
-    final stoppedPath = await _recorder.stop();
+    String? stoppedPath;
+    try {
+      stoppedPath = await _recorder.stop();
+    } finally {
+      await _endAudioPlaybackCapture();
+    }
     await _amplitudeSubscription?.cancel();
     _amplitudeSubscription = null;
     final result = CapturedAudio(
@@ -116,6 +133,7 @@ class FileAudioCapture implements AudioCapture {
   Future<void> _cancel({required bool renewRecorder}) async {
     final cancelledPath = _path;
     if (await _recorder.isRecording()) await _recorder.cancel();
+    await _endAudioPlaybackCapture();
     await _amplitudeSubscription?.cancel();
     _amplitudeSubscription = null;
     _path = null;
@@ -128,6 +146,30 @@ class FileAudioCapture implements AudioCapture {
       }
     }
     if (renewRecorder) await _renewOwnedRecorder();
+  }
+
+  Future<void> _beginAudioPlaybackCapture() async {
+    if (!Platform.isAndroid) return;
+    try {
+      await _audioPlaybackChannel.invokeMethod<void>('beginCapture');
+      _audioPlaybackArmed = true;
+    } on MissingPluginException {
+      // Older Android hosts do not provide the optional playback bridge.
+    } on PlatformException {
+      // Playback restoration must not block recording.
+    }
+  }
+
+  Future<void> _endAudioPlaybackCapture() async {
+    if (!Platform.isAndroid || !_audioPlaybackArmed) return;
+    _audioPlaybackArmed = false;
+    try {
+      await _audioPlaybackChannel.invokeMethod<void>('endCapture');
+    } on MissingPluginException {
+      // Older Android hosts do not provide the optional playback bridge.
+    } on PlatformException {
+      // Playback restoration is best effort.
+    }
   }
 
   Future<void> _renewOwnedRecorder() async {

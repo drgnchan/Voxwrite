@@ -7,6 +7,11 @@ class AndroidPlatformBridge {
     'dev.raymond.voxwrite/android_platform',
   );
 
+  Future<void> openFcitx5Download() async {
+    if (!Platform.isAndroid) return;
+    await _channel.invokeMethod<void>('openFcitx5Download');
+  }
+
   Future<void> openInputMethodSettings() async {
     if (!Platform.isAndroid) return;
     await _channel.invokeMethod<void>('openInputMethodSettings');

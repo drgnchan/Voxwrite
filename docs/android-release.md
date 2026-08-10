@@ -23,13 +23,15 @@ flutter build apk --release --split-per-abi
 flutter build apk --release
 ```
 
-Version `0.3.12+21` adds a configurable Domain Background. The saved context is injected into Alibaba Qwen-Audio recognition and writing prompts as non-authoritative context to improve specialized-term handling. It produces these signed artifacts in `dist/android/`:
+Version `0.3.23+32` turns Android VoxWrite into a voice-only auxiliary input method. Fcitx5 or another primary keyboard owns Chinese, English, candidates, symbols, and Space; its toolbar microphone switches to VoxWrite Voice, which records automatically, commits the processed result, and returns to the previous keyboard. It produces these signed artifacts in `dist/android/`:
 
-- `VoxWrite-0.3.12-arm64-v8a-release.apk` — recommended for current Android phones; installed version code 2021
-- `VoxWrite-0.3.12-armeabi-v7a-release.apk` — legacy 32-bit ARM; installed version code 1021
-- `VoxWrite-0.3.12-x86_64-release.apk` — x86_64 emulators/devices; installed version code 4021
-- `VoxWrite-0.3.12-universal-release.apk` — largest, architecture-independent installer; version code 21
-- `SHA256SUMS` and `SHA256SUMS-0.3.12` — latest and version-pinned integrity hashes
+- `VoxWrite-0.3.23-arm64-v8a-release.apk` — recommended for current Android phones; installed version code 2032
+- `VoxWrite-0.3.23-armeabi-v7a-release.apk` — legacy 32-bit ARM; installed version code 1032
+- `VoxWrite-0.3.23-x86_64-release.apk` — x86_64 emulators/devices; installed version code 4032
+- `VoxWrite-0.3.23-universal-release.apk` — largest, architecture-independent installer; version code 32
+- `SHA256SUMS` and `SHA256SUMS-0.3.23` — latest and version-pinned integrity hashes
+
+For convenience, `Fcitx5-0.1.3-arm64-v8a-official.apk` is the unmodified upstream arm64 release downloaded from the [official Fcitx5 Android release](https://github.com/fcitx5-android/fcitx5-android/releases/tag/0.1.3). Its SHA-256 is `8e5de1036aea1f55895b39b4fc25a2d563e7b0663fa2708c86598f81768b106d`, and its signing-certificate SHA-256 is `e4db1e9edff13629d07de4bbf8165fe9bd8557ab55092672da8e40dbe484ecd7`, matching the fingerprint published by Fcitx5 Android.
 
 Keep using the same ABI-specific package for updates. Flutter assigns ABI offsets to split APK version codes, so switching between a split APK and the universal APK is not an interchangeable update path.
 

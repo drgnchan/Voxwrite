@@ -7,7 +7,7 @@ VoxWrite is a personal, cross-platform voice writing assistant for macOS, Window
 - **macOS Fn / Windows F8** — Dictation: clean spoken thoughts into usable text
 - **macOS Fn + Left Shift / Windows Shift + F8** — Translation
 - **macOS Fn + Space / Windows Ctrl + F8** — Ask, summarize, or rewrite selected text
-- Android system input method with native voice, Pinyin, and English mode controls
+- Android auxiliary voice input method integrated with Fcitx5 or another primary keyboard
 - Local history and personal dictionary
 - Alibaba Cloud Model Studio first, with Doubao and custom providers behind adapters
 
@@ -19,7 +19,7 @@ See [`CONTEXT.md`](./CONTEXT.md) for domain terminology and [`research/typeless/
 | --- | --- |
 | macOS | Swift event tap + captured-target clipboard insertion |
 | Windows | Native low-level F8 shortcut + captured-window clipboard insertion |
-| Android | Kotlin input method service backed by a headless Flutter engine |
+| Android | Kotlin auxiliary `voice` input method backed by a headless Flutter engine; Fcitx5 owns manual typing |
 
 There is intentionally no iOS target.
 
@@ -45,9 +45,9 @@ Implemented:
 - Source-language-preserving Dictation prompts and configurable Translation output
 - macOS menu-bar lifecycle, window reopen, and optional launch at login
 - Windows native F8/Shift+F8/Ctrl+F8 bridge and captured-window paste path
-- Android input method service with Dictation, Translation, and Ask controls
-- Built-in Android Voice, offline Pinyin, and English keyboard modes with QWERTY, long-sentence Pinyin segmentation, locally learned candidate ranking, case switching, and symbol layouts
-- Android real-time waveform, duration, processing state, configured Provider reuse, and IME history persistence
+- Android auxiliary voice input method with Dictation and Translation controls
+- Standard Android `voice` subtype integration with the Fcitx5 toolbar, automatic recording start, result commit, cancellation, and return to the previous keyboard
+- Android real-time waveform, duration, processing state, configured Provider reuse, and voice-session history persistence
 - Signed, shrunk Android Release APKs with adaptive VoxWrite launcher icons, OEM-safe navigation insets, flat tonal editing keys, and guarded swipe-up clearing, verified on Xiaomi and OPPO devices
 - Stale-session protection so cancelled cloud requests cannot insert text
 - Domain, prompt, VAD, history, ASR parser, and widget tests

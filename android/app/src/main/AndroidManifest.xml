@@ -32,7 +32,7 @@
         <service
             android:name=".VoxWriteInputMethodService"
             android:exported="true"
-            android:label="VoxWrite 语音输入"
+            android:label="VoxWrite Voice"
             android:permission="android.permission.BIND_INPUT_METHOD">
             <intent-filter>
                 <action android:name="android.view.InputMethod" />

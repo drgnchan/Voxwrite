@@ -3,7 +3,8 @@
     android:settingsActivity="dev.raymond.voxwrite.MainActivity"
     android:supportsSwitchingToNextInputMethod="true">
     <subtype
+        android:label="@string/voxwrite_voice_subtype"
         android:imeSubtypeLocale="zh_CN"
-        android:imeSubtypeMode="keyboard"
-        android:isAuxiliary="false" />
+        android:imeSubtypeMode="voice"
+        android:isAuxiliary="true" />
 </input-method>

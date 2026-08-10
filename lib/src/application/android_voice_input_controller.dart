@@ -18,12 +18,14 @@ import 'runtime_settings.dart';
 import 'voice_activity_detector.dart';
 import 'workflow_dependencies.dart';
 
-class AndroidImeController {
-  static const _channel = MethodChannel('dev.raymond.voxwrite/android_ime');
+class AndroidVoiceInputController {
+  static const _channel = MethodChannel(
+    'dev.raymond.voxwrite/android_voice_input',
+  );
 
   // The record plugin's permission helper requires an Activity and therefore
-  // always reports false inside a headless InputMethodService engine. The
-  // service performs the permission check with its native Context instead.
+  // reports false inside a headless InputMethodService engine. The native
+  // auxiliary voice IME performs the permission check with its own Context.
   final FileAudioCapture _capture = FileAudioCapture(
     verifyPermissionWithRecorder: false,
   );
@@ -40,8 +42,8 @@ class AndroidImeController {
   double _latestAmplitudeDb = -80;
   bool _recording = false;
   VoiceMode _mode = VoiceMode.dictation;
-  String? _selectedText;
-  Future<String>? _processing;
+  Future<String?>? _processing;
+  int _generation = 0;
 
   void initialize() {
     _channel.setMethodCallHandler((call) async {
@@ -50,35 +52,43 @@ class AndroidImeController {
           final arguments = Map<Object?, Object?>.from(
             call.arguments as Map? ?? const <Object?, Object?>{},
           );
-          await start(
-            modeName: arguments['mode'] as String?,
-            selectedText: arguments['selectedText'] as String?,
-          );
+          await start(modeName: arguments['mode'] as String?);
           return true;
+        case 'setMode':
+          final arguments = Map<Object?, Object?>.from(
+            call.arguments as Map? ?? const <Object?, Object?>{},
+          );
+          setMode(arguments['mode'] as String?);
+          return null;
         case 'stop':
           return stop();
         case 'cancel':
           await cancel();
           return null;
         default:
-          throw MissingPluginException('Unknown IME method ${call.method}');
+          throw MissingPluginException(
+            'Unknown voice input method ${call.method}',
+          );
       }
     });
   }
 
-  Future<void> start({String? modeName, String? selectedText}) async {
+  Future<void> start({String? modeName}) async {
     if (_recording || _processing != null) return;
-    _mode =
-        VoiceMode.values.where((value) => value.name == modeName).firstOrNull ??
-        VoiceMode.dictation;
-    _selectedText = selectedText;
+    final generation = ++_generation;
+    setMode(modeName);
     final hasMicrophonePermission =
         await _channel.invokeMethod<bool>('hasMicrophonePermission') ?? false;
     if (!hasMicrophonePermission) {
       throw const AudioCaptureException('没有麦克风权限，请在系统设置中允许 VoxWrite 使用麦克风。');
     }
     final runtime = await loadRuntimeSettings(SharedPreferencesAsync());
+    if (generation != _generation) return;
     await _capture.start();
+    if (generation != _generation) {
+      await _capture.cancel();
+      return;
+    }
     _recording = true;
     _latestAmplitudeDb = -80;
     _detector = VoiceActivityDetector(
@@ -92,24 +102,33 @@ class AndroidImeController {
     _startedAt = DateTime.now();
     if (runtime.autoStopOnSilence) {
       _noSpeechTimer = Timer(const Duration(seconds: 8), () {
-        if (_recording && _detector?.speechDetected != true) {
-          unawaited(_cancelWithoutSpeech());
+        if (_recording &&
+            generation == _generation &&
+            _detector?.speechDetected != true) {
+          unawaited(_cancelWithoutSpeech(generation));
         }
       });
     }
     _maximumRecordingTimer = Timer(const Duration(minutes: 2), () {
-      if (_recording) unawaited(_finishAndCommit());
+      if (_recording && generation == _generation) {
+        unawaited(_finishAndCommit(generation));
+      }
     });
     _progressTimer = Timer.periodic(
       const Duration(milliseconds: 120),
-      (_) => unawaited(_sendProgress()),
+      (_) => unawaited(_sendProgress(generation)),
     );
     await _amplitudeSubscription?.cancel();
     _amplitudeSubscription = _capture.amplitude.listen((amplitudeDb) {
       _latestAmplitudeDb = amplitudeDb;
       final detector = _detector;
       final startedAt = _startedAt;
-      if (!_recording || detector == null || startedAt == null) return;
+      if (!_recording ||
+          generation != _generation ||
+          detector == null ||
+          startedAt == null) {
+        return;
+      }
       final decision = detector.add(
         amplitudeDb: amplitudeDb,
         elapsed: DateTime.now().difference(startedAt),
@@ -117,9 +136,9 @@ class AndroidImeController {
       switch (decision) {
         case VoiceActivityDecision.trailingSilence:
         case VoiceActivityDecision.maximumDuration:
-          unawaited(_finishAndCommit());
+          unawaited(_finishAndCommit(generation));
         case VoiceActivityDecision.noSpeechTimeout:
-          unawaited(_cancelWithoutSpeech());
+          unawaited(_cancelWithoutSpeech(generation));
         case VoiceActivityDecision.none:
         case VoiceActivityDecision.speechStarted:
           break;
@@ -127,59 +146,77 @@ class AndroidImeController {
     });
   }
 
+  void setMode(String? modeName) {
+    if (_processing != null) return;
+    _mode = modeName == VoiceMode.translation.name
+        ? VoiceMode.translation
+        : VoiceMode.dictation;
+  }
+
   Future<String?> stop() async {
     if (!_recording || _processing != null) return null;
-    return _finish();
+    return _finish(_generation);
   }
 
   Future<void> cancel() async {
+    _generation++;
     _recording = false;
+    _processing = null;
+    _mode = VoiceMode.dictation;
     await _stopMonitoring();
     await _capture.cancel();
-    _selectedText = null;
-    _mode = VoiceMode.dictation;
   }
 
-  Future<void> _finishAndCommit() async {
-    if (!_recording || _processing != null) return;
+  Future<void> _finishAndCommit(int generation) async {
+    if (!_recording || _processing != null || generation != _generation) {
+      return;
+    }
     try {
       await _channel.invokeMethod<void>('showProcessing');
-      final output = await _finish();
+      final output = await _finish(generation);
+      if (generation != _generation || output == null || output.isEmpty) return;
       await _channel.invokeMethod<void>('commitText', <String, String>{
         'text': output,
       });
     } catch (error) {
+      if (generation != _generation) return;
       await _channel.invokeMethod<void>('showError', <String, String>{
         'message': error.toString().replaceFirst('Exception: ', ''),
       });
     }
   }
 
-  Future<String> _finish() {
+  Future<String?> _finish(int generation) {
     final existing = _processing;
     if (existing != null) return existing;
-    final operation = _processRecording();
+    late final Future<String?> operation;
+    operation = _processRecording(generation).whenComplete(() {
+      if (identical(_processing, operation)) _processing = null;
+    });
     _processing = operation;
-    return operation.whenComplete(() => _processing = null);
+    return operation;
   }
 
-  Future<String> _processRecording() async {
+  Future<String?> _processRecording(int generation) async {
     _recording = false;
     await _stopMonitoring();
     String? audioPath;
     try {
       final captured = await _capture.stop();
       audioPath = captured.path;
+      if (generation != _generation) return null;
       if (captured.duration < const Duration(milliseconds: 350)) {
         throw const CloudProviderException('录音太短，请重新说一次。');
       }
 
       final apiKey = await _keyStore.read().timeout(const Duration(seconds: 8));
+      if (generation != _generation) return null;
       if (apiKey == null || apiKey.trim().isEmpty) {
         throw const CloudProviderException('请先打开 VoxWrite 保存阿里云 API Key。');
       }
       final preferences = SharedPreferencesAsync();
       final runtime = await loadRuntimeSettings(preferences);
+      if (generation != _generation) return null;
       final cloud = runtime.cloud;
       if (cloud.vendor != CloudProviderVendor.alibaba) {
         throw CloudProviderException(
@@ -189,6 +226,7 @@ class AndroidImeController {
       final dictionary =
           await preferences.getStringList(personalDictionaryStorageKey) ??
           const <String>[];
+      if (generation != _generation) return null;
       final recognizer = AlibabaQwenAsrProvider(
         dio: _dio,
         apiKey: apiKey,
@@ -202,6 +240,7 @@ class AndroidImeController {
         vocabulary: dictionary,
         domainBackground: runtime.domainBackground,
       );
+      if (generation != _generation) return null;
       final transformer = OpenAiCompatibleWritingProvider(
         dio: _dio,
         apiKey: apiKey,
@@ -217,7 +256,6 @@ class AndroidImeController {
         WritingRequest(
           mode: _mode,
           transcript: transcript,
-          selectedText: _selectedText,
           targetLanguages: _mode == VoiceMode.translation
               ? <String>[runtime.translationTarget]
               : const <String>[],
@@ -225,6 +263,7 @@ class AndroidImeController {
           domainBackground: runtime.domainBackground,
         ),
       );
+      if (generation != _generation) return null;
       try {
         await HistoryStore(
           preferences: preferences,
@@ -234,8 +273,6 @@ class AndroidImeController {
       }
       return output;
     } finally {
-      _selectedText = null;
-      _mode = VoiceMode.dictation;
       if (audioPath != null) {
         try {
           await File(audioPath).delete();
@@ -246,23 +283,23 @@ class AndroidImeController {
     }
   }
 
-  Future<void> _cancelWithoutSpeech() async {
-    if (!_recording) return;
+  Future<void> _cancelWithoutSpeech(int generation) async {
+    if (!_recording || generation != _generation) return;
     await cancel();
     await _channel.invokeMethod<void>('showError', <String, String>{
       'message': '未检测到语音，请重试。',
     });
   }
 
-  Future<void> _sendProgress() async {
-    if (!_recording || _startedAt == null) return;
+  Future<void> _sendProgress(int generation) async {
+    if (!_recording || generation != _generation || _startedAt == null) return;
     try {
       await _channel.invokeMethod<void>('recordingProgress', <String, Object>{
         'elapsedMs': DateTime.now().difference(_startedAt!).inMilliseconds,
         'amplitudeDb': _latestAmplitudeDb,
       });
     } on PlatformException {
-      // The input view may disappear while a progress frame is in flight.
+      // The voice input view may disappear while a progress frame is in flight.
     }
   }
 

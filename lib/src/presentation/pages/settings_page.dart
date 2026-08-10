@@ -382,23 +382,30 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               if (Platform.isAndroid) ...[
                 const SizedBox(height: 18),
                 _SectionCard(
-                  title: 'Android 输入法',
-                  subtitle: '先在系统中启用 VoxWrite，再从输入法选择器切换。',
+                  title: 'Android 语音输入',
+                  subtitle:
+                      'VoxWrite 作为辅助语音输入，与 Fcitx5 等主输入法配合使用。先启用两者，再在 Fcitx5 中显示语音按钮并将首选语音输入设为 VoxWrite Voice。',
                   child: Wrap(
                     spacing: 10,
                     runSpacing: 10,
                     children: [
                       OutlinedButton.icon(
                         onPressed: () =>
+                            AndroidPlatformBridge().openFcitx5Download(),
+                        icon: const Icon(Icons.download_outlined),
+                        label: const Text('获取 Fcitx5'),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: () =>
                             AndroidPlatformBridge().openInputMethodSettings(),
-                        icon: const Icon(Icons.settings_outlined),
-                        label: const Text('启用输入法'),
+                        icon: const Icon(Icons.settings_voice_outlined),
+                        label: const Text('启用 VoxWrite Voice'),
                       ),
                       FilledButton.icon(
                         onPressed: () =>
                             AndroidPlatformBridge().showInputMethodPicker(),
                         icon: const Icon(Icons.keyboard_outlined),
-                        label: const Text('选择 VoxWrite'),
+                        label: const Text('选择主输入法'),
                       ),
                     ],
                   ),

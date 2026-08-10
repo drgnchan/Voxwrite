@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
 import android.view.inputmethod.InputMethodManager
@@ -28,6 +29,15 @@ class MainActivity : FlutterActivity() {
             "dev.raymond.voxwrite/android_platform"
         ).setMethodCallHandler { call, result ->
             when (call.method) {
+                "openFcitx5Download" -> {
+                    startActivity(
+                        Intent(
+                            Intent.ACTION_VIEW,
+                            Uri.parse("https://github.com/fcitx5-android/fcitx5-android/releases/latest")
+                        )
+                    )
+                    result.success(null)
+                }
                 "openInputMethodSettings" -> {
                     startActivity(Intent(Settings.ACTION_INPUT_METHOD_SETTINGS))
                     result.success(null)
@@ -36,6 +46,24 @@ class MainActivity : FlutterActivity() {
                     val manager = getSystemService(Context.INPUT_METHOD_SERVICE)
                         as InputMethodManager
                     manager.showInputMethodPicker()
+                    result.success(null)
+                }
+                else -> result.notImplemented()
+            }
+        }
+
+        val audioPlayback = AudioPlaybackController(this)
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "dev.raymond.voxwrite/audio_playback"
+        ).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "beginCapture" -> {
+                    audioPlayback.beginCapture()
+                    result.success(null)
+                }
+                "endCapture" -> {
+                    audioPlayback.endCapture()
                     result.success(null)
                 }
                 else -> result.notImplemented()

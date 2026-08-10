@@ -21,17 +21,18 @@ The native bridge captures the foreground window when recording starts and sends
 
 ## Android
 
-1. Open VoxWrite once and grant Microphone permission.
-2. Save the API Key in VoxWrite on that Android device; secrets do not sync from desktop.
-3. Optionally fill in **领域背景** in Settings with your professional field or technical stack; it is used as contextual help for recognition and cleanup, not as an instruction.
-4. In Settings, choose **启用输入法** and enable **VoxWrite 语音输入**.
-5. Choose **选择 VoxWrite** to make it the active input method.
-6. The input method opens in **语音** each time; use the top switcher to choose **拼音** or **EN** for the current input session.
-7. In Voice mode, select Dictation, Translation, or Ask and start speaking.
-8. In Pinyin mode, type full Pinyin or a continuous multi-word sentence and tap a candidate or press Space to choose the first candidate. Explicit candidate choices are learned locally; Backspace edits the active composition before deleting committed text.
-9. In English mode, use Shift for one uppercase letter, double-tap Shift for Caps Lock, and use `?123` for numbers and symbols.
-10. In Voice mode, tap Delete to remove one character, or hold Delete until the haptic cue and swipe upward to clear the entire current field. Holding and releasing without the upward swipe cancels clearing.
+VoxWrite is an auxiliary voice input method, not a replacement keyboard. Pair it with Fcitx5 for Android or another primary keyboard that can switch to an installed `voice` subtype.
 
-The Pinyin lexicon is fully offline and generated from the MIT-licensed jieba and pypinyin projects; its notice is packaged under `assets/licenses/`. Up to 512 candidate-selection preferences are remembered locally; the previously selected keyboard mode is intentionally not remembered. Neither keystrokes nor learned ranking data are sent to a Pinyin service.
+1. Install [Fcitx5 for Android](https://github.com/fcitx5-android/fcitx5-android/releases/latest) and VoxWrite Voice.
+2. Open VoxWrite once, grant Microphone permission, and securely save the API Key on that Android device; secrets do not sync from desktop.
+3. Optionally fill in **领域背景** with the user's professional field or technical stack. It is contextual help for recognition and cleanup, not an instruction.
+4. Open Android input-method settings and enable both **Fcitx5** and **VoxWrite Voice**.
+5. Make Fcitx5 the primary input method.
+6. In Fcitx5 settings, enable **显示语音输入按钮** and choose **VoxWrite Voice** as **首选语音输入**.
+7. Tap the microphone in the Fcitx5 toolbar. VoxWrite opens and starts recording automatically.
+8. Keep **口述** selected or switch to **翻译** while recording. Tap the large stop button to process immediately, or wait for trailing-silence auto-stop.
+9. VoxWrite commits the result through Android `InputConnection` and automatically returns to the previous keyboard. **取消** discards the recording and also returns to the previous keyboard.
 
-The input method runs a headless Flutter engine so it can reuse the same recording, provider, dictionary, prompt, and voice-activity code. Results are committed through Android `InputConnection`; raw audio is deleted after processing. Its bottom padding follows Android navigation-bar, tappable-element, and system-gesture insets to avoid OEM controls overlaying the editing row.
+Fcitx5 owns Chinese, English, candidates, symbols, and the space bar. VoxWrite only owns the explicit voice session, never adds a voice gesture to Space, and does not observe manual keystrokes. Password fields do not expose the Fcitx5 voice-input button.
+
+The auxiliary voice input method runs a headless Flutter engine so it can reuse the recording, provider, dictionary, prompt, history, and voice-activity code. Raw audio is deleted after processing, including cancellation and failures.

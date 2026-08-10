@@ -1,0 +1,3 @@
+# Use an auxiliary Android voice IME
+
+Android VoxWrite is a voice-only auxiliary input method with a standard `voice` subtype; Fcitx5 or another primary keyboard owns manual Chinese and English input. This replaces VoxWrite's home-grown keyboard because mature keyboards already solve composition, candidates, learning, symbols, and layout, while Android's IME switching preserves reliable `InputConnection` insertion without a persistent overlay or Accessibility service. VoxWrite starts recording when selected from the primary keyboard's voice button, then commits or cancels and returns to the previous keyboard.

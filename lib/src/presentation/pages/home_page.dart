@@ -13,6 +13,9 @@ class HomePage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final session = ref.watch(voiceSessionProvider);
+    final availableModes = Platform.isAndroid
+        ? VoiceMode.values.where((mode) => mode != VoiceMode.ask)
+        : VoiceMode.values;
     return SingleChildScrollView(
       padding: const EdgeInsets.all(32),
       child: Center(
@@ -29,7 +32,9 @@ class HomePage extends ConsumerWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                '用声音完成整理、翻译和改写，结果会直接回到当前输入位置。',
+                Platform.isAndroid
+                    ? '在 Fcitx5 工具栏点击麦克风，用声音完成整理和翻译。'
+                    : '用声音完成整理、翻译和改写，结果会直接回到当前输入位置。',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
@@ -48,7 +53,7 @@ class HomePage extends ConsumerWidget {
                     spacing: 16,
                     runSpacing: 16,
                     children: [
-                      for (final mode in VoiceMode.values)
+                      for (final mode in availableModes)
                         SizedBox(
                           width: cardWidth,
                           child: _ModeCard(
@@ -147,7 +152,7 @@ class _ModeCard extends StatelessWidget {
                   Platform.isWindows
                       ? mode.windowsShortcut
                       : Platform.isAndroid
-                      ? '输入法麦克风'
+                      ? 'Fcitx5 麦克风'
                       : mode.shortcut,
                   style: Theme.of(context).textTheme.labelMedium,
                 ),
@@ -172,7 +177,9 @@ class _SessionPanel extends ConsumerWidget {
       VoiceSessionPhase.idle => (
         Icons.check_circle_outline,
         '随时可以开始',
-        '点击上方模式开始录音，也可以使用对应的全局快捷键。',
+        Platform.isAndroid
+            ? '将 Fcitx5 设为主输入法，然后点击其工具栏麦克风。'
+            : '点击上方模式开始录音，也可以使用对应的全局快捷键。',
       ),
       VoiceSessionPhase.shortcutPreview => (
         Icons.keyboard_command_key,

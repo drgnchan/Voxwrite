@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app.dart';
-import 'src/application/android_ime_controller.dart';
+import 'src/application/android_voice_input_controller.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -10,7 +10,7 @@ void main() {
 }
 
 @pragma('vm:entry-point')
-void imeMain() {
+void voiceInputMain() {
   WidgetsFlutterBinding.ensureInitialized();
-  AndroidImeController().initialize();
+  AndroidVoiceInputController().initialize();
 }
