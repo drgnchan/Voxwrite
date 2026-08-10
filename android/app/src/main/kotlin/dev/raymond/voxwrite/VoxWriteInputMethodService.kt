@@ -15,6 +15,7 @@ import android.view.Gravity
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
+import android.view.inputmethod.InputMethodManager
 import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.LinearLayout
@@ -476,8 +477,31 @@ class VoxWriteInputMethodService : InputMethodService() {
     private fun returnToPreviousInputMethod() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             if (switchToPreviousInputMethod()) return
+            if (switchToPreferredPrimaryInputMethod()) return
+            if (switchToNextInputMethod(false)) return
         }
         requestHideSelf(0)
+    }
+
+    private fun switchToPreferredPrimaryInputMethod(): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return false
+        val inputMethodManager = getSystemService(InputMethodManager::class.java)
+        val enabledMethods = inputMethodManager.enabledInputMethodList
+        val preferredPackages = listOf(TRIME_PACKAGE, FCITX5_PACKAGE)
+        preferredPackages.forEach { packageName ->
+            val method = enabledMethods.firstOrNull { it.packageName == packageName }
+                ?: return@forEach
+            val keyboardSubtype = (0 until method.subtypeCount)
+                .map(method::getSubtypeAt)
+                .firstOrNull { !it.mode.equals("voice", ignoreCase = true) }
+            if (keyboardSubtype == null) {
+                switchInputMethod(method.id)
+            } else {
+                switchInputMethod(method.id, keyboardSubtype)
+            }
+            return true
+        }
+        return false
     }
 
     override fun onFinishInputView(finishingInput: Boolean) {
@@ -617,6 +641,8 @@ class VoxWriteInputMethodService : InputMethodService() {
         const val AUDIO_PLAYBACK_CHANNEL = "dev.raymond.voxwrite/audio_playback"
         const val MODE_DICTATION = "dictation"
         const val MODE_TRANSLATION = "translation"
+        const val TRIME_PACKAGE = "com.osfans.trime"
+        const val FCITX5_PACKAGE = "org.fcitx.fcitx5.android"
         const val AUTO_START_DELAY_MS = 180L
         const val RETURN_DELAY_MS = 180L
     }

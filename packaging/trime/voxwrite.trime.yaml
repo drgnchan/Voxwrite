@@ -1,0 +1,375 @@
+# Trime theme and keyboard layout
+# encoding: utf-8
+
+config_version: "3.0"
+name: VoxWrite 九键
+author: VoxWrite
+
+style:
+  auto_caps: false
+  candidate_padding: 8
+  candidate_spacing: 2
+  candidate_text_size: 20
+  candidate_view_height: 36
+  comment_height: 12
+  comment_position: right
+  comment_text_size: 11
+  horizontal_gap: 5
+  key_height: 56
+  key_long_text_size: 15
+  key_text_size: 20
+  key_width: 10
+  keyboard_height: 270
+  keyboard_height_land: 210
+  label_text_size: 17
+  popup_height: 54
+  popup_key_height: 54
+  popup_text_size: 22
+  popup_width: 48
+  reset_ascii_mode_on_focus_change: false
+  round_corner: 10
+  symbol_text_size: 11
+  vertical_gap: 6
+  enter_label_mode: 0
+  enter_labels:
+    go: 前往
+    done: 完成
+    next: 下个
+    pre: 上个
+    search: 搜索
+    send: 发送
+    default: 回车
+
+preedit:
+  horizontal_padding: 8
+  foreground:
+    font_size: 16
+
+window:
+  insets:
+    vertical: 4
+    horizontal: 4
+  item_padding:
+    horizontal: 5
+  foreground:
+    label_font_size: 18
+    text_font_size: 20
+    comment_font_size: 13
+
+fallback_colors:
+  candidate_text_color: text_color
+
+preset_color_schemes:
+  default:
+    name: VoxWrite
+    author: VoxWrite
+    dark_scheme: dark
+    back_color: 0xfff7f5fb
+    border_color: 0xffebe8f2
+    candidate_text_color: 0xff26232d
+    comment_text_color: 0xff77717f
+    hilited_back_color: 0xffece8f6
+    hilited_candidate_back_color: 0xff6659ad
+    hilited_candidate_text_color: 0xffffffff
+    hilited_key_back_color: 0xffdcd6ee
+    hilited_key_text_color: 0xff26232d
+    key_back_color: 0xffffffff
+    key_text_color: 0xff26232d
+    key_symbol_color: 0xff77717f
+    keyboard_back_color: 0xfff0edf5
+    label_color: 0xff6659ad
+    text_color: 0xff6659ad
+    text_back_color: 0xfff7f5fb
+    function_back_color: 0xffe5e1ec
+    function_text_color: 0xff4d4855
+    accent_back_color: 0xff6659ad
+    accent_text_color: 0xffffffff
+    voice_back_color: 0xff6659ad
+    voice_text_color: 0xffffffff
+
+  light:
+    name: VoxWrite 浅色
+    author: VoxWrite
+    back_color: 0xfff7f5fb
+    border_color: 0xffebe8f2
+    candidate_text_color: 0xff26232d
+    comment_text_color: 0xff77717f
+    hilited_back_color: 0xffece8f6
+    hilited_candidate_back_color: 0xff6659ad
+    hilited_candidate_text_color: 0xffffffff
+    hilited_key_back_color: 0xffdcd6ee
+    hilited_key_text_color: 0xff26232d
+    key_back_color: 0xffffffff
+    key_text_color: 0xff26232d
+    key_symbol_color: 0xff77717f
+    keyboard_back_color: 0xfff0edf5
+    label_color: 0xff6659ad
+    text_color: 0xff6659ad
+    text_back_color: 0xfff7f5fb
+    function_back_color: 0xffe5e1ec
+    function_text_color: 0xff4d4855
+    accent_back_color: 0xff6659ad
+    accent_text_color: 0xffffffff
+    voice_back_color: 0xff6659ad
+    voice_text_color: 0xffffffff
+
+  dark:
+    name: VoxWrite 深色
+    author: VoxWrite
+    back_color: 0xff1f1e24
+    border_color: 0xff29272f
+    candidate_text_color: 0xfff2eff8
+    comment_text_color: 0xffaaa4b3
+    hilited_back_color: 0xff35313f
+    hilited_candidate_back_color: 0xff8878d1
+    hilited_candidate_text_color: 0xffffffff
+    hilited_key_back_color: 0xff484251
+    hilited_key_text_color: 0xffffffff
+    key_back_color: 0xff302e36
+    key_text_color: 0xfff2eff8
+    key_symbol_color: 0xffaaa4b3
+    keyboard_back_color: 0xff242229
+    label_color: 0xffb8aaf0
+    text_color: 0xffb8aaf0
+    text_back_color: 0xff1f1e24
+    function_back_color: 0xff3b3842
+    function_text_color: 0xffe4dfea
+    accent_back_color: 0xff8878d1
+    accent_text_color: 0xffffffff
+    voice_back_color: 0xff8878d1
+    voice_text_color: 0xffffffff
+
+tool_bar:
+  primary_button:
+    background:
+      type: circle
+      normal: voice_back_color
+      highlight: hilited_key_back_color
+      vertical_inset: 3
+      horizontal_inset: 3
+    foreground:
+      style: "ic@microphone"
+      normal: voice_text_color
+      highlight: hilited_key_text_color
+      font_size: 20
+      padding: 5
+    action: VOICE_ASSIST
+  buttons:
+    - foreground:
+        style: "方案"
+        font_size: 14
+        padding: 5
+      action: Menu
+    - foreground:
+        style: "中/En"
+        font_size: 14
+        padding: 5
+      action: Mode_switch
+    - foreground:
+        style: "⌄"
+        font_size: 20
+        padding: 5
+      action: Hide
+
+preset_keyboards:
+  # The schema id and keyboard id intentionally match. Trime selects this
+  # layout automatically when the VoxWrite nine-key schema is active.
+  voxwrite_jiugong:
+    name: VoxWrite 九键
+    author: VoxWrite
+    ascii_mode: 0
+    ascii_keyboard: voxwrite_en
+    lock: true
+    width: 23
+    height: 56
+    horizontal_gap: 5
+    vertical_gap: 6
+    keys:
+      - {click: ",", label: "，", width: 15.5, long_click: "?"}
+      - {click: 1, label: 分词, composing: delimiter}
+      - {click: 2, label: ABC}
+      - {click: 3, label: DEF}
+      - {click: BackSpace, width: 15.5, key_back_color: function_back_color, key_text_color: function_text_color}
+
+      - {click: ".", label: "。", width: 15.5, long_click: "!"}
+      - {click: 4, label: GHI}
+      - {click: 5, label: JKL}
+      - {click: 6, label: MNO}
+      - {click: Keyboard_voxwrite_number, width: 15.5, key_back_color: function_back_color, key_text_color: function_text_color}
+
+      - {click: "?", label: "？", width: 15.5, long_click: "@"}
+      - {click: 7, label: PQRS}
+      - {click: 8, label: TUV}
+      - {click: 9, label: WXYZ}
+      - {click: Keyboard_voxwrite_editor, width: 15.5, key_back_color: function_back_color, key_text_color: function_text_color}
+
+      - {click: Keyboard_voxwrite_symbols, width: 15.5, key_back_color: function_back_color, key_text_color: function_text_color}
+      - {click: Keyboard_voxwrite_en, width: 23, key_back_color: function_back_color, key_text_color: function_text_color}
+      - {click: space, width: 46}
+      - {click: Return, width: 15.5, key_back_color: accent_back_color, key_text_color: accent_text_color}
+
+  voxwrite_en:
+    name: VoxWrite 英文
+    author: VoxWrite
+    ascii_mode: 1
+    lock: false
+    width: 10
+    height: 56
+    keys:
+      - {click: q, long_click: 1}
+      - {click: w, long_click: 2}
+      - {click: e, long_click: 3}
+      - {click: r, long_click: 4}
+      - {click: t, long_click: 5}
+      - {click: y, long_click: 6}
+      - {click: u, long_click: 7}
+      - {click: i, long_click: 8}
+      - {click: o, long_click: 9}
+      - {click: p, long_click: 0}
+
+      - {width: 5}
+      - {click: a, long_click: "@"}
+      - {click: s, long_click: "#"}
+      - {click: d, long_click: "$"}
+      - {click: f, long_click: "%"}
+      - {click: g, long_click: "&"}
+      - {click: h, long_click: "-"}
+      - {click: j, long_click: "+"}
+      - {click: k, long_click: "("}
+      - {click: l, long_click: ")"}
+      - {width: 5}
+
+      - {click: Shift_L, width: 15, key_back_color: function_back_color, key_text_color: function_text_color}
+      - {click: z}
+      - {click: x}
+      - {click: c}
+      - {click: v}
+      - {click: b}
+      - {click: n}
+      - {click: m}
+      - {click: BackSpace, width: 15, key_back_color: function_back_color, key_text_color: function_text_color}
+
+      - {click: Keyboard_voxwrite_number, width: 12, key_back_color: function_back_color, key_text_color: function_text_color}
+      - {click: VOICE_ASSIST, label: "🎙", width: 12, key_back_color: voice_back_color, key_text_color: voice_text_color}
+      - {click: ",", width: 10}
+      - {click: space, width: 32}
+      - {click: ".", width: 10}
+      - {click: Keyboard_voxwrite_jiugong, width: 12, key_back_color: function_back_color, key_text_color: function_text_color}
+      - {click: Return, width: 12, key_back_color: accent_back_color, key_text_color: accent_text_color}
+
+  voxwrite_number:
+    name: VoxWrite 数字
+    author: VoxWrite
+    ascii_mode: 1
+    lock: false
+    width: 20
+    height: 56
+    keys:
+      - {click: "+"}
+      - {click: 1}
+      - {click: 2}
+      - {click: 3}
+      - {click: BackSpace, key_back_color: function_back_color, key_text_color: function_text_color}
+      - {click: "-"}
+      - {click: 4}
+      - {click: 5}
+      - {click: 6}
+      - {click: Keyboard_voxwrite_jiugong, key_back_color: function_back_color, key_text_color: function_text_color}
+      - {click: "*"}
+      - {click: 7}
+      - {click: 8}
+      - {click: 9}
+      - {click: Keyboard_voxwrite_en, key_back_color: function_back_color, key_text_color: function_text_color}
+      - {click: "/"}
+      - {click: "."}
+      - {click: 0}
+      - {click: "="}
+      - {click: Return, key_back_color: accent_back_color, key_text_color: accent_text_color}
+
+  voxwrite_symbols:
+    name: VoxWrite 符号
+    author: VoxWrite
+    ascii_mode: 1
+    lock: false
+    width: 20
+    height: 56
+    keys:
+      - {click: "，"}
+      - {click: "。"}
+      - {click: "？"}
+      - {click: "！"}
+      - {click: BackSpace, key_back_color: function_back_color, key_text_color: function_text_color}
+      - {click: "："}
+      - {click: "；"}
+      - {click: "、"}
+      - {click: "……"}
+      - {click: Keyboard_voxwrite_jiugong, key_back_color: function_back_color, key_text_color: function_text_color}
+      - {click: "（"}
+      - {click: "）"}
+      - {click: "“"}
+      - {click: "”"}
+      - {click: Keyboard_voxwrite_en, key_back_color: function_back_color, key_text_color: function_text_color}
+      - {click: "@"}
+      - {click: "#"}
+      - {click: space}
+      - {click: "_"}
+      - {click: Return, key_back_color: accent_back_color, key_text_color: accent_text_color}
+
+  voxwrite_editor:
+    name: VoxWrite 编辑
+    author: VoxWrite
+    ascii_mode: 1
+    lock: false
+    width: 20
+    height: 56
+    keys:
+      - {click: select_all}
+      - {click: Home}
+      - {click: Up}
+      - {click: End}
+      - {click: BackSpace, key_back_color: function_back_color, key_text_color: function_text_color}
+      - {click: cut}
+      - {click: Left}
+      - {click: space}
+      - {click: Right}
+      - {click: Keyboard_voxwrite_jiugong, key_back_color: function_back_color, key_text_color: function_text_color}
+      - {click: copy}
+      - {click: undo}
+      - {click: Down}
+      - {click: redo}
+      - {click: Keyboard_voxwrite_en, key_back_color: function_back_color, key_text_color: function_text_color}
+      - {click: paste}
+      - {click: Delete}
+      - {click: Clear}
+      - {click: VOICE_ASSIST, label: "🎙", key_back_color: voice_back_color, key_text_color: voice_text_color}
+      - {click: Return, key_back_color: accent_back_color, key_text_color: accent_text_color}
+
+preset_keys:
+  VOICE_ASSIST: {label: "🎙", functional: true, send: VOICE_ASSIST}
+  Shift_L: {label: "⇧", preview: "⇧", functional: false, send: Shift_L, shift_lock: click}
+  Return: {label: enter_labels, preview: "↵", functional: false, send: Return}
+  Hide: {label: "⌄", send: BACK}
+  BackSpace: {label: "⌫", preview: "⌫", repeatable: true, functional: false, slide_delete: true, send: BackSpace}
+  space: {label: 空格, preview: " ", functional: false, slide_cursor: true, send: space}
+  delimiter: {label: 分词, text: "'"}
+  Clear: {label: 全清, send: Clear}
+  Delete: {label: 删除, send: Delete, functional: false}
+  Home: {label: 行首, send: Home, functional: false}
+  End: {label: 行尾, send: End, functional: false}
+  Left: {label: "←", send: Left, repeatable: true, functional: false}
+  Down: {label: "↓", send: Down, repeatable: true, functional: false}
+  Up: {label: "↑", send: Up, repeatable: true, functional: false}
+  Right: {label: "→", send: Right, repeatable: true, functional: false}
+  select_all: {label: 全选, functional: false, send: Control+a}
+  cut: {label: 剪切, functional: false, send: Control+x}
+  copy: {label: 复制, functional: false, send: Control+c}
+  paste: {label: 粘贴, functional: false, send: Control+v}
+  redo: {label: 重做, functional: false, send: Control+Shift+z}
+  undo: {label: 撤销, functional: false, send: Control+z}
+  Mode_switch: {toggle: ascii_mode, functional: false, send: Mode_switch, states: [中, En]}
+  Menu: {label: 方案, functional: false, send: Menu}
+  Keyboard_voxwrite_jiugong: {label: 中, functional: false, send: Eisu_toggle, select: voxwrite_jiugong}
+  Keyboard_voxwrite_en: {label: EN, functional: false, send: Eisu_toggle, select: voxwrite_en}
+  Keyboard_voxwrite_number: {label: "123", functional: false, send: Eisu_toggle, select: voxwrite_number}
+  Keyboard_voxwrite_symbols: {label: 符, functional: false, send: Eisu_toggle, select: voxwrite_symbols}
+  Keyboard_voxwrite_editor: {label: 编辑, functional: false, send: Eisu_toggle, select: voxwrite_editor}

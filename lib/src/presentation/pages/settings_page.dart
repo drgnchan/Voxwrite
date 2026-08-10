@@ -384,16 +384,16 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 _SectionCard(
                   title: 'Android 语音输入',
                   subtitle:
-                      'VoxWrite 作为辅助语音输入，与 Fcitx5 等主输入法配合使用。先启用两者，再在 Fcitx5 中显示语音按钮并将首选语音输入设为 VoxWrite Voice。',
+                      'VoxWrite 作为辅助语音输入，与配套的 Trime 九键输入法配合使用。安装九键配置后，在同文输入法的“常规”中将首选语音输入法设为 VoxWrite Voice。',
                   child: Wrap(
                     spacing: 10,
                     runSpacing: 10,
                     children: [
                       OutlinedButton.icon(
                         onPressed: () =>
-                            AndroidPlatformBridge().openFcitx5Download(),
-                        icon: const Icon(Icons.download_outlined),
-                        label: const Text('获取 Fcitx5'),
+                            AndroidPlatformBridge().openTrimeSettings(),
+                        icon: const Icon(Icons.keyboard_outlined),
+                        label: const Text('打开 Trime 设置'),
                       ),
                       OutlinedButton.icon(
                         onPressed: () =>

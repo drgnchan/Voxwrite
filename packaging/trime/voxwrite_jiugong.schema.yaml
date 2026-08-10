@@ -1,0 +1,53 @@
+# Rime schema
+# encoding: utf-8
+
+__include: luna_pinyin_simp.schema:/
+
+schema:
+  schema_id: voxwrite_jiugong
+  name: VoxWrite 九键拼音
+  version: "1.0"
+  author:
+    - VoxWrite
+  description: |
+    基于朙月拼音词库的九键拼音方案，配合 VoxWrite Voice 使用。
+
+switches:
+  - name: ascii_mode
+    reset: 0
+    states: [ 中文, 西文 ]
+  - name: full_shape
+    states: [ 半角, 全角 ]
+  - name: zh_simp
+    reset: 1
+    states: [ 漢字, 汉字 ]
+  - name: ascii_punct
+    states: [ 。，, ．， ]
+
+speller:
+  alphabet: "zyxwvutsrqponmlkjihgfedcba1234567890"
+  delimiter: " '"
+  algebra:
+    - erase/^xx$/
+    - abbrev/^([a-z]).+$/$1/
+    - abbrev/^([zcs]h).+$/$1/
+    - derive/^([nl])ve$/$1ue/
+    - derive/^([jqxy])u/$1v/
+    - derive/un$/uen/
+    - derive/ui$/uei/
+    - derive/iu$/iou/
+    - derive/([aeiou])ng$/$1gn/
+    - derive/([dtngkhrzcs])o(u|ng)$/$1o/
+    - derive/ong$/on/
+    - derive/ao$/oa/
+    - derive/([iu])a(o|ng?)$/a$1$2/
+    - xlit/abcdefghijklmnopqrstuvwxyz/22233344455566677778889999/
+
+translator:
+  dictionary: luna_pinyin
+  prism: voxwrite_jiugong
+  enable_sentence: true
+  enable_user_dict: true
+  enable_encoder: true
+  encode_commit_history: true
+  preedit_format: []

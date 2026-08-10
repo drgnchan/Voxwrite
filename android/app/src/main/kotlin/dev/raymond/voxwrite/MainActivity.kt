@@ -29,13 +29,13 @@ class MainActivity : FlutterActivity() {
             "dev.raymond.voxwrite/android_platform"
         ).setMethodCallHandler { call, result ->
             when (call.method) {
-                "openFcitx5Download" -> {
-                    startActivity(
-                        Intent(
+                "openTrimeSettings" -> {
+                    val intent = packageManager.getLaunchIntentForPackage("com.osfans.trime")
+                        ?: Intent(
                             Intent.ACTION_VIEW,
-                            Uri.parse("https://github.com/fcitx5-android/fcitx5-android/releases/latest")
+                            Uri.parse("https://github.com/osfans/trime")
                         )
-                    )
+                    startActivity(intent)
                     result.success(null)
                 }
                 "openInputMethodSettings" -> {
