@@ -4,7 +4,6 @@ import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
 import android.view.inputmethod.InputMethodManager
@@ -29,15 +28,6 @@ class MainActivity : FlutterActivity() {
             "dev.raymond.voxwrite/android_platform"
         ).setMethodCallHandler { call, result ->
             when (call.method) {
-                "openTrimeSettings" -> {
-                    val intent = packageManager.getLaunchIntentForPackage("com.osfans.trime")
-                        ?: Intent(
-                            Intent.ACTION_VIEW,
-                            Uri.parse("https://github.com/osfans/trime")
-                        )
-                    startActivity(intent)
-                    result.success(null)
-                }
                 "openInputMethodSettings" -> {
                     startActivity(Intent(Settings.ACTION_INPUT_METHOD_SETTINGS))
                     result.success(null)

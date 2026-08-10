@@ -7,11 +7,6 @@ class AndroidPlatformBridge {
     'dev.raymond.voxwrite/android_platform',
   );
 
-  Future<void> openTrimeSettings() async {
-    if (!Platform.isAndroid) return;
-    await _channel.invokeMethod<void>('openTrimeSettings');
-  }
-
   Future<void> openInputMethodSettings() async {
     if (!Platform.isAndroid) return;
     await _channel.invokeMethod<void>('openInputMethodSettings');

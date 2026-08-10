@@ -1,5 +1,0 @@
-# Select the VoxWrite nine-key schema when Trime deploys this profile.
-patch:
-  schema_list:
-    - schema: voxwrite_jiugong
-    - schema: luna_pinyin_simp
