@@ -48,7 +48,7 @@ class GlobalShortcutBridge {
   static const _methods = MethodChannel('dev.raymond.voxwrite/permissions');
 
   Stream<GlobalShortcutEvent> events() {
-    if (!Platform.isMacOS && !Platform.isWindows) {
+    if (!Platform.isMacOS && !Platform.isWindows && !Platform.isLinux) {
       return const Stream.empty();
     }
     return _events.receiveBroadcastStream().map((dynamic event) {
@@ -105,13 +105,13 @@ class GlobalShortcutBridge {
   }
 
   Future<void> setSessionActive(bool active) async {
-    if (!Platform.isMacOS) return;
+    if (!Platform.isMacOS && !Platform.isLinux) return;
     try {
       await _methods.invokeMethod<void>('setShortcutSessionActive', {
         'active': active,
       });
     } on MissingPluginException {
-      // Widget tests do not install the macOS bridge.
+      // Widget tests do not install a desktop native bridge.
     }
   }
 

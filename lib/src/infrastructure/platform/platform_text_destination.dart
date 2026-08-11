@@ -11,19 +11,19 @@ class PlatformTextDestination implements TextDestination {
 
   @override
   Future<void> captureTarget() async {
-    if (!Platform.isMacOS && !Platform.isWindows) return;
+    if (!_supportsDesktopBridge) return;
     await _channel.invokeMethod<bool>('captureTarget');
   }
 
   @override
   Future<String?> readSelection() async {
-    if (!Platform.isMacOS && !Platform.isWindows) return null;
+    if (!_supportsDesktopBridge) return null;
     return _channel.invokeMethod<String>('readSelection');
   }
 
   @override
   Future<void> insert(String text) async {
-    if (Platform.isMacOS || Platform.isWindows) {
+    if (_supportsDesktopBridge) {
       final inserted = await _channel.invokeMethod<bool>(
         'insertText',
         <String, String>{'text': text},
@@ -36,7 +36,10 @@ class PlatformTextDestination implements TextDestination {
 
   @override
   Future<void> clearTarget() async {
-    if (!Platform.isMacOS && !Platform.isWindows) return;
+    if (!_supportsDesktopBridge) return;
     await _channel.invokeMethod<void>('clearTarget');
   }
+
+  bool get _supportsDesktopBridge =>
+      Platform.isMacOS || Platform.isWindows || Platform.isLinux;
 }

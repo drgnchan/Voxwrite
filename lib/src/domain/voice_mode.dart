@@ -19,7 +19,7 @@ extension VoiceModeText on VoiceMode {
     VoiceMode.ask => 'Fn + Space',
   };
 
-  String get windowsShortcut => switch (this) {
+  String get f8Shortcut => switch (this) {
     VoiceMode.dictation => 'F8',
     VoiceMode.translation => 'Shift + F8',
     VoiceMode.ask => 'Ctrl + F8',

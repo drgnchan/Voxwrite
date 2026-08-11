@@ -125,7 +125,7 @@ class _ShortcutCoordinatorState extends ConsumerState<ShortcutCoordinator> {
   }
 
   bool get _shortcutShouldBeEnabled =>
-      (Platform.isMacOS || Platform.isWindows) &&
+      (Platform.isMacOS || Platform.isWindows || Platform.isLinux) &&
       (ref.read(runtimeSettingsProvider).value?.globalShortcutEnabled ?? false);
 
   Future<void> _showPermissionNotice({
@@ -176,7 +176,7 @@ class _ShortcutCoordinatorState extends ConsumerState<ShortcutCoordinator> {
       unawaited(_bridge.setSessionActive(active));
     });
     final enabled =
-        (Platform.isMacOS || Platform.isWindows) &&
+        (Platform.isMacOS || Platform.isWindows || Platform.isLinux) &&
         ref.watch(
           runtimeSettingsProvider.select(
             (value) => value.value?.globalShortcutEnabled ?? false,

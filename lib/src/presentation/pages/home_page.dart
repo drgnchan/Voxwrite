@@ -149,8 +149,8 @@ class _ModeCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
-                  Platform.isWindows
-                      ? mode.windowsShortcut
+                  Platform.isWindows || Platform.isLinux
+                      ? mode.f8Shortcut
                       : Platform.isAndroid
                       ? 'Voice 输入'
                       : mode.shortcut,
@@ -184,7 +184,9 @@ class _SessionPanel extends ConsumerWidget {
       VoiceSessionPhase.shortcutPreview => (
         Icons.keyboard_command_key,
         '模式已选定',
-        '松开快捷键后开始录音；按 Shift 或 Space 可以切换模式。',
+        Platform.isMacOS
+            ? '松开 Fn 后开始录音；按 Shift 或 Space 可以切换模式。'
+            : '松开 F8 后开始录音；按 Shift 或 Ctrl 可以切换模式。',
       ),
       VoiceSessionPhase.recording => (
         Icons.mic_rounded,

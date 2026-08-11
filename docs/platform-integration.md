@@ -19,6 +19,30 @@ Windows does not expose the hardware `Fn` key to applications. VoxWrite uses:
 
 The native bridge captures the foreground window when recording starts and sends one clipboard paste when processing completes. Build and runtime verification must be performed on a Windows host.
 
+## Linux
+
+Linux uses the same shortcuts as Windows:
+
+- `F8`: Dictation
+- `Shift + F8`: Translation
+- `Ctrl + F8`: Ask
+- `Esc`: cancel an active Voice Session
+
+On an **X11 session**, the native runner grabs these shortcuts, remembers the `_NET_ACTIVE_WINDOW`, reads selected text from the X11 PRIMARY selection for Ask, and sends one clipboard paste to the captured window after processing.
+
+On a **Wayland session**, compositor security prevents an ordinary application from globally capturing keys, identifying/focusing another client's window, or injecting a paste. VoxWrite remains usable from its own window and copies completed output to the clipboard, but system-wide shortcuts and automatic cross-application insertion are unavailable. Log in with an X11 session for the complete workflow.
+
+Build prerequisites on Debian/Ubuntu include Flutter's normal Linux desktop dependencies plus the packages used by VoxWrite and its plugins:
+
+```bash
+sudo apt install clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev \
+  libx11-dev libxtst-dev libsecret-1-dev ffmpeg pulseaudio-utils
+flutter pub get
+flutter build linux --release
+```
+
+Linux builds and runtime behavior must be verified on a Linux host.
+
 ## Android
 
 VoxWrite is a standard auxiliary `voice` input method, not a replacement keyboard. The user may choose any primary keyboard that can invoke an installed Android voice input method.

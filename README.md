@@ -1,12 +1,12 @@
 # VoxWrite
 
-VoxWrite is a personal, cross-platform voice writing assistant for macOS, Windows, and Android. It independently reproduces the workflow of speaking into any application, while using original branding and UI.
+VoxWrite is a personal, cross-platform voice writing assistant for macOS, Windows, Linux, and Android. It independently reproduces the workflow of speaking into any application, while using original branding and UI.
 
 ## Target workflow
 
-- **macOS Fn / Windows F8** — Dictation: clean spoken thoughts into usable text
-- **macOS Fn + Left Shift / Windows Shift + F8** — Translation
-- **macOS Fn + Space / Windows Ctrl + F8** — Ask, summarize, or rewrite selected text
+- **macOS Fn / Windows and Linux F8** — Dictation: clean spoken thoughts into usable text
+- **macOS Fn + Left Shift / Windows and Linux Shift + F8** — Translation
+- **macOS Fn + Space / Windows and Linux Ctrl + F8** — Ask, summarize, or rewrite selected text
 - Android auxiliary voice input compatible with user-selected primary keyboards
 - Local history and personal dictionary
 - Alibaba Cloud Model Studio first, with Doubao and custom providers behind adapters
@@ -19,6 +19,7 @@ See [`CONTEXT.md`](./CONTEXT.md) for domain terminology and [`research/typeless/
 | --- | --- |
 | macOS | Swift event tap + captured-target clipboard insertion |
 | Windows | Native low-level F8 shortcut + captured-window clipboard insertion |
+| Linux | X11 F8 grabs + captured-window clipboard insertion; Wayland UI/clipboard fallback |
 | Android | Kotlin auxiliary `voice` input method backed by a headless Flutter engine; the user's preferred keyboard owns manual typing |
 
 There is intentionally no iOS target.
@@ -27,7 +28,7 @@ There is intentionally no iOS target.
 
 Implemented:
 
-- Flutter project for macOS, Windows, and Android
+- Flutter project for macOS, Windows, Linux, and Android
 - Original responsive desktop/mobile UI
 - Dictation, Translation, and Ask session state machine
 - Prompt construction for cleanup, translation, and selected-text editing
@@ -45,6 +46,7 @@ Implemented:
 - Source-language-preserving Dictation prompts and configurable Translation output
 - macOS menu-bar lifecycle, window reopen, and optional launch at login
 - Windows native F8/Shift+F8/Ctrl+F8 bridge and captured-window paste path
+- Linux X11 F8/Shift+F8/Ctrl+F8 bridge, PRIMARY selection reads, captured-window paste path, and Wayland clipboard fallback
 - Android auxiliary voice input method with Dictation and Translation controls
 - Standard Android `voice` subtype integration with automatic recording start, result commit, cancellation, and return to the previously active keyboard
 - Android real-time waveform, duration, processing state, configured Provider reuse, and voice-session history persistence
@@ -57,15 +59,17 @@ See [`docs/alibaba-cloud-setup.md`](./docs/alibaba-cloud-setup.md) for Provider 
 Next milestone:
 
 1. Build and run the Windows native bridge on a Windows machine
-2. Tune Android VAD thresholds against more rooms, voices, and microphones
-3. Add an explicit Android update/rollback workflow around the signed Release APK
-4. Dogfood longer-form Android dictation in daily messaging and note-taking
+2. Build and dogfood the Linux native bridge on X11 distributions; evaluate a Wayland portal integration
+3. Tune Android VAD thresholds against more rooms, voices, and microphones
+4. Add an explicit Android update/rollback workflow around the signed Release APK
+5. Dogfood longer-form Android dictation in daily messaging and note-taking
 
 ## Run
 
 ```bash
 flutter pub get
 flutter run -d macos
+# On Linux: flutter run -d linux
 ```
 
 ## Verify
@@ -74,6 +78,7 @@ flutter run -d macos
 flutter analyze
 flutter test
 flutter build macos --debug
+flutter build linux --debug  # run on Linux
 flutter build apk --debug
 ```
 

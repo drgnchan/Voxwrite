@@ -304,11 +304,19 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                   ],
                 ),
               ),
-              if (Platform.isMacOS || Platform.isWindows) ...[
+              if (Platform.isMacOS ||
+                  Platform.isWindows ||
+                  Platform.isLinux) ...[
                 const SizedBox(height: 18),
                 _SectionCard(
-                  title: Platform.isWindows ? 'Windows 全局 F8' : 'macOS 全局 Fn',
-                  subtitle: Platform.isWindows
+                  title: Platform.isLinux
+                      ? 'Linux 全局 F8'
+                      : Platform.isWindows
+                      ? 'Windows 全局 F8'
+                      : 'macOS 全局 Fn',
+                  subtitle: Platform.isLinux
+                      ? 'X11 下支持全局 F8 与自动回填；Wayland 安全模型下请从应用内启动，结果会复制到剪贴板。'
+                      : Platform.isWindows
                       ? 'Windows 不暴露硬件 Fn 键，因此使用 F8、Shift+F8 和 Ctrl+F8。'
                       : '默认开启；跨应用监听需要辅助功能和输入监控权限。关闭后不再监听 Fn。',
                   child: Column(
@@ -317,7 +325,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                       SwitchListTile.adaptive(
                         contentPadding: EdgeInsets.zero,
                         title: Text(
-                          Platform.isWindows
+                          Platform.isWindows || Platform.isLinux
                               ? '监听全局 F8、Shift + F8、Ctrl + F8'
                               : '监听全局 Fn、Fn + Shift、Fn + Space',
                         ),
