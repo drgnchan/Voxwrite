@@ -9,23 +9,27 @@ VoxWrite 默认接入阿里云百炼：
 
 ## 设置项
 
+VoxWrite 的语音识别与文本模型已解耦：语音识别固定使用阿里云百炼 Qwen-Audio，文本模型可独立选择服务商（阿里云百炼 / 豆包 / DeepSeek / 自定义兼容接口），两者各自使用独立的 API Key。
+
 在 VoxWrite → 设置中填写：
 
 | 设置 | 推荐值 |
 | --- | --- |
-| 服务商 | 阿里云百炼 |
-| Base URL | `https://dashscope.aliyuncs.com/compatible-mode/v1` |
-| 文本模型 | `qwen-plus` |
+| 语音识别 Base URL | `https://dashscope.aliyuncs.com/compatible-mode/v1` |
 | 语音识别模型 | `qwen-audio-3.0-asr-flash` |
-| API Key | 从百炼控制台创建的 Key |
+| 阿里云百炼 API Key | 从百炼控制台创建的 Key |
+| 文本模型服务商 | 阿里云百炼（也可选 DeepSeek、豆包或自定义） |
+| 文本模型 Base URL | 按服务商，例如 DeepSeek 为 `https://api.deepseek.com` |
+| 文本模型 | 例如 `qwen-plus` 或 `deepseek-v4-flash` |
+| 文本模型 API Key | 对应服务商的 Key |
 
-如果当前业务空间要求专属地址，请将 Base URL 改为：
+如果当前业务空间要求专属地址，请将语音识别 Base URL 改为：
 
 ```text
 https://{WorkspaceId}.cn-beijing.maas.aliyuncs.com/compatible-mode/v1
 ```
 
-VoxWrite 会保留该地址供文本模型使用，并自动将 Qwen-Audio 的语音请求转换到同一域名下的原生端点：
+VoxWrite 会将 Qwen-Audio 的语音请求自动转换到同一域名下的原生端点：
 
 ```text
 https://{WorkspaceId}.cn-beijing.maas.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation

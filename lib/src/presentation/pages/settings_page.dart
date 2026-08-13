@@ -19,7 +19,8 @@ class SettingsPage extends ConsumerStatefulWidget {
 }
 
 class _SettingsPageState extends ConsumerState<SettingsPage> {
-  final _apiKeyController = TextEditingController();
+  final _speechApiKeyController = TextEditingController();
+  final _writingApiKeyController = TextEditingController();
   final _lifecycleBridge = PlatformLifecycleBridge();
   bool _savingKey = false;
   bool _launchAtLoginSupported = false;
@@ -37,11 +38,18 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
 
   Future<void> _loadKey() async {
     try {
-      final value = await ref
+      final speechValue = await ref
           .read(cloudApiKeyStoreProvider)
           .read()
           .timeout(const Duration(seconds: 5));
-      if (mounted && value != null) _apiKeyController.text = value;
+      final writingValue = await ref
+          .read(writingApiKeyStoreProvider)
+          .read()
+          .timeout(const Duration(seconds: 5));
+      if (mounted) {
+        if (speechValue != null) _speechApiKeyController.text = speechValue;
+        if (writingValue != null) _writingApiKeyController.text = writingValue;
+      }
     } on TimeoutException {
       if (mounted) {
         setState(() => _storageError = '读取系统安全存储超时，请重启应用后重试。');
@@ -83,10 +91,14 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     }
   }
 
-  Future<void> _saveKey() async {
-    final value = _apiKeyController.text.trim();
+  Future<void> _saveKey(
+    CloudApiKeyStore store,
+    TextEditingController controller, {
+    required String emptyMessage,
+  }) async {
+    final value = controller.text.trim();
     if (value.isEmpty) {
-      setState(() => _storageError = 'API Key 不能为空。');
+      setState(() => _storageError = emptyMessage);
       return;
     }
 
@@ -95,9 +107,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       _storageError = null;
     });
     try {
-      final keyStore = ref.read(cloudApiKeyStoreProvider);
-      await keyStore.write(value).timeout(const Duration(seconds: 8));
-      final stored = await keyStore.read().timeout(const Duration(seconds: 5));
+      await store.write(value).timeout(const Duration(seconds: 8));
+      final stored = await store.read().timeout(const Duration(seconds: 5));
       if (stored != value) {
         throw StateError('Keychain 写入后读回校验失败');
       }
@@ -120,7 +131,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
 
   @override
   void dispose() {
-    _apiKeyController.dispose();
+    _speechApiKeyController.dispose();
+    _writingApiKeyController.dispose();
     super.dispose();
   }
 
@@ -136,7 +148,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             : const CircularProgressIndicator(),
       );
     }
-    final cloud = settings.cloud;
+    final writing = settings.writing;
+    final speech = settings.speech;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(32),
@@ -149,12 +162,73 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               Text('设置', style: Theme.of(context).textTheme.headlineMedium),
               const SizedBox(height: 24),
               _SectionCard(
-                title: '云端 Provider',
-                subtitle: '文本处理采用 OpenAI 兼容接口；Qwen-Audio 语音识别自动改用百炼原生接口。',
+                title: '语音识别',
+                subtitle: '语音识别固定使用阿里云百炼 Qwen-Audio；个人词典会作为即时热词提交给支持该能力的模型。',
+                child: Column(
+                  children: [
+                    TextFormField(
+                      key: const ValueKey('speech-base'),
+                      initialValue: speech.baseUrl,
+                      decoration: const InputDecoration(
+                        labelText: '百炼 Base URL',
+                        border: OutlineInputBorder(),
+                      ),
+                      onChanged: (value) {
+                        unawaited(controller.updateSpeech(baseUrl: value));
+                      },
+                    ),
+                    const SizedBox(height: 14),
+                    TextFormField(
+                      key: const ValueKey('speech-model'),
+                      initialValue: speech.model,
+                      decoration: const InputDecoration(
+                        labelText: '语音识别模型',
+                        hintText: '推荐 qwen-audio-3.0-asr-flash',
+                        helperText: '个人词典会作为即时热词提交给支持该能力的模型。',
+                        border: OutlineInputBorder(),
+                      ),
+                      onChanged: (value) {
+                        unawaited(controller.updateSpeech(model: value));
+                      },
+                    ),
+                    const SizedBox(height: 14),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _speechApiKeyController,
+                            obscureText: true,
+                            decoration: const InputDecoration(
+                              labelText: '阿里云百炼 API Key',
+                              border: OutlineInputBorder(),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        FilledButton(
+                          onPressed: _savingKey
+                              ? null
+                              : () => _saveKey(
+                                  ref.read(cloudApiKeyStoreProvider),
+                                  _speechApiKeyController,
+                                  emptyMessage: 'API Key 不能为空。',
+                                ),
+                          child: Text(_savingKey ? '保存中…' : '安全保存'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 18),
+              _SectionCard(
+                title: '文本模型',
+                subtitle: '文本整理采用 OpenAI 兼容接口，支持阿里云百炼、豆包、DeepSeek 和自定义兼容接口。',
                 child: Column(
                   children: [
                     DropdownButtonFormField<CloudProviderVendor>(
-                      initialValue: cloud.vendor,
+                      initialValue: writing.vendor,
                       decoration: const InputDecoration(
                         labelText: '服务商',
                         border: OutlineInputBorder(),
@@ -168,47 +242,33 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                       ],
                       onChanged: (vendor) {
                         if (vendor != null) {
-                          unawaited(controller.setVendor(vendor));
+                          unawaited(controller.setWritingVendor(vendor));
                         }
                       },
                     ),
                     const SizedBox(height: 14),
                     TextFormField(
-                      key: ValueKey('base-${cloud.vendor.name}'),
-                      initialValue: cloud.baseUrl,
+                      key: ValueKey('writing-base-${writing.vendor.name}'),
+                      initialValue: writing.baseUrl,
                       decoration: const InputDecoration(
                         labelText: '兼容接口 Base URL',
                         border: OutlineInputBorder(),
                       ),
                       onChanged: (value) {
-                        unawaited(controller.updateCloud(baseUrl: value));
+                        unawaited(controller.updateWriting(baseUrl: value));
                       },
                     ),
                     const SizedBox(height: 14),
                     TextFormField(
-                      key: ValueKey('writing-${cloud.vendor.name}'),
-                      initialValue: cloud.writingModel,
+                      key: ValueKey('writing-model-${writing.vendor.name}'),
+                      initialValue: writing.model,
                       decoration: const InputDecoration(
                         labelText: '文本模型或 Endpoint ID',
-                        hintText: '例如 qwen-plus',
+                        hintText: '例如 qwen-plus 或 deepseek-v4-flash',
                         border: OutlineInputBorder(),
                       ),
                       onChanged: (value) {
-                        unawaited(controller.updateCloud(writingModel: value));
-                      },
-                    ),
-                    const SizedBox(height: 14),
-                    TextFormField(
-                      key: ValueKey('speech-${cloud.vendor.name}'),
-                      initialValue: cloud.speechModel,
-                      decoration: const InputDecoration(
-                        labelText: '语音识别模型',
-                        hintText: '推荐 qwen-audio-3.0-asr-flash',
-                        helperText: '个人词典会作为即时热词提交给支持该能力的模型。',
-                        border: OutlineInputBorder(),
-                      ),
-                      onChanged: (value) {
-                        unawaited(controller.updateCloud(speechModel: value));
+                        unawaited(controller.updateWriting(model: value));
                       },
                     ),
                     const SizedBox(height: 14),
@@ -217,36 +277,42 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                       children: [
                         Expanded(
                           child: TextField(
-                            controller: _apiKeyController,
+                            controller: _writingApiKeyController,
                             obscureText: true,
                             decoration: const InputDecoration(
-                              labelText: 'API Key',
+                              labelText: '文本模型 API Key',
                               border: OutlineInputBorder(),
                             ),
                           ),
                         ),
                         const SizedBox(width: 12),
                         FilledButton(
-                          onPressed: _savingKey ? null : _saveKey,
+                          onPressed: _savingKey
+                              ? null
+                              : () => _saveKey(
+                                  ref.read(writingApiKeyStoreProvider),
+                                  _writingApiKeyController,
+                                  emptyMessage: 'API Key 不能为空。',
+                                ),
                           child: Text(_savingKey ? '保存中…' : '安全保存'),
                         ),
                       ],
                     ),
-                    if (_storageError != null) ...[
-                      const SizedBox(height: 10),
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          _storageError!,
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.error,
-                          ),
-                        ),
-                      ),
-                    ],
                   ],
                 ),
               ),
+              if (_storageError != null) ...[
+                const SizedBox(height: 10),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    _storageError!,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                  ),
+                ),
+              ],
               const SizedBox(height: 18),
               _SectionCard(
                 title: '领域背景',

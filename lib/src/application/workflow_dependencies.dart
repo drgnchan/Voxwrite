@@ -10,6 +10,7 @@ import '../infrastructure/platform/platform_text_destination.dart';
 
 const cloudApiKeyStorageKey = 'cloud_provider_api_key_v2';
 const _legacyCloudApiKeyStorageKey = 'cloud_provider_api_key';
+const writingApiKeyStorageKey = 'writing_provider_api_key_v1';
 
 final dioProvider = Provider<Dio>((ref) => Dio());
 
@@ -26,9 +27,16 @@ final secureStorageProvider = Provider<FlutterSecureStorage>(
 /// only for the current process and avoids a Keychain authorization dialog at
 /// the end of every recording.
 class CloudApiKeyStore {
-  CloudApiKeyStore(this._storage);
+  CloudApiKeyStore(
+    this._storage, {
+    String? storageKey,
+    String? legacyStorageKey,
+  }) : _storageKey = storageKey ?? cloudApiKeyStorageKey,
+       _legacyStorageKey = legacyStorageKey;
 
   final FlutterSecureStorage _storage;
+  final String _storageKey;
+  final String? _legacyStorageKey;
   String? _cachedValue;
   bool _hasCachedValue = false;
   Future<String?>? _pendingRead;
@@ -40,12 +48,13 @@ class CloudApiKeyStore {
 
   Future<String?> _readAndCache() async {
     try {
-      var value = await _storage.read(key: cloudApiKeyStorageKey);
-      if (value == null) {
-        value = await _storage.read(key: _legacyCloudApiKeyStorageKey);
+      var value = await _storage.read(key: _storageKey);
+      final legacyKey = _legacyStorageKey;
+      if (value == null && legacyKey != null) {
+        value = await _storage.read(key: legacyKey);
         if (value != null) {
           try {
-            await _storage.write(key: cloudApiKeyStorageKey, value: value);
+            await _storage.write(key: _storageKey, value: value);
           } catch (_) {
             // The legacy item remains intact if migration cannot be written.
           }
@@ -61,15 +70,27 @@ class CloudApiKeyStore {
 
   Future<void> write(String value) async {
     await _storage
-        .write(key: cloudApiKeyStorageKey, value: value)
+        .write(key: _storageKey, value: value)
         .timeout(const Duration(seconds: 8));
     _cachedValue = value;
     _hasCachedValue = true;
   }
 }
 
+/// Alibaba Cloud API key used by the Qwen-Audio speech recognizer.
 final cloudApiKeyStoreProvider = Provider<CloudApiKeyStore>(
-  (ref) => CloudApiKeyStore(ref.read(secureStorageProvider)),
+  (ref) => CloudApiKeyStore(
+    ref.read(secureStorageProvider),
+    legacyStorageKey: _legacyCloudApiKeyStorageKey,
+  ),
+);
+
+/// API key used by the writing model of the selected vendor.
+final writingApiKeyStoreProvider = Provider<CloudApiKeyStore>(
+  (ref) => CloudApiKeyStore(
+    ref.read(secureStorageProvider),
+    storageKey: writingApiKeyStorageKey,
+  ),
 );
 
 final audioCaptureProvider = Provider<AudioCapture>((ref) {

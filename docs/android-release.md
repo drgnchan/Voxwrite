@@ -23,13 +23,13 @@ flutter build apk --release --split-per-abi
 flutter build apk --release
 ```
 
-Version `0.3.25+34` keeps VoxWrite as a keyboard-independent, voice-only auxiliary input method. The user's preferred primary keyboard owns manual input; selecting VoxWrite Voice starts recording, commits or cancels the result, and asks Android to return to the previously active keyboard. It produces these signed artifacts in `dist/android/`:
+Version `0.3.26+35` keeps VoxWrite as a keyboard-independent, voice-only auxiliary input method. The user's preferred primary keyboard owns manual input; selecting VoxWrite Voice starts recording, commits or cancels the result, and asks Android to return to the previously active keyboard. It produces these signed artifacts in `dist/android/`:
 
-- `VoxWrite-0.3.25-arm64-v8a-release.apk` — recommended for current Android phones; installed version code 2034
-- `VoxWrite-0.3.25-armeabi-v7a-release.apk` — legacy 32-bit ARM; installed version code 1034
-- `VoxWrite-0.3.25-x86_64-release.apk` — x86_64 emulators/devices; installed version code 4034
-- `VoxWrite-0.3.25-universal-release.apk` — largest, architecture-independent installer; version code 34
-- `SHA256SUMS` and `SHA256SUMS-0.3.25` — latest and version-pinned integrity hashes
+- `VoxWrite-0.3.26-arm64-v8a-release.apk` — recommended for current Android phones; installed version code 2035
+- `VoxWrite-0.3.26-armeabi-v7a-release.apk` — legacy 32-bit ARM; installed version code 1035
+- `VoxWrite-0.3.26-x86_64-release.apk` — x86_64 emulators/devices; installed version code 4035
+- `VoxWrite-0.3.26-universal-release.apk` — largest, architecture-independent installer; version code 35
+- `SHA256SUMS` and `SHA256SUMS-0.3.26` — latest and version-pinned integrity hashes
 
 Keep using the same ABI-specific package for updates. Flutter assigns ABI offsets to split APK version codes, so switching between a split APK and the universal APK is not an interchangeable update path.
 

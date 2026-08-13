@@ -248,14 +248,12 @@ void main() {
     });
   });
 
-  test('Alibaba defaults to Qwen-Audio 3.0 ASR Flash', () {
+  test('speech settings default to Qwen-Audio 3.0 ASR Flash', () {
+    const speech = SpeechProviderSettings();
     expect(
-      CloudProviderVendor.alibaba.defaultSpeechModel,
-      'qwen-audio-3.0-asr-flash',
+      speech.baseUrl,
+      'https://dashscope.aliyuncs.com/compatible-mode/v1',
     );
-    expect(
-      const CloudProviderSettings().speechModel,
-      'qwen-audio-3.0-asr-flash',
-    );
+    expect(speech.model, 'qwen-audio-3.0-asr-flash');
   });
 }

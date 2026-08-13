@@ -9,7 +9,7 @@ VoxWrite is a personal, cross-platform voice writing assistant for macOS, Window
 - **macOS Fn + Space / Windows and Linux Ctrl + F8** — Ask, summarize, or rewrite selected text
 - Android auxiliary voice input compatible with user-selected primary keyboards
 - Local history and personal dictionary
-- Alibaba Cloud Model Studio first, with Doubao and custom providers behind adapters
+- Alibaba Cloud Model Studio first, with DeepSeek, Doubao, and custom providers behind adapters
 
 See [`CONTEXT.md`](./CONTEXT.md) for domain terminology and [`research/typeless/FEATURE_MAP.md`](./research/typeless/FEATURE_MAP.md) for the observed behavior map.
 
@@ -34,7 +34,7 @@ Implemented:
 - Prompt construction for cleanup, translation, and selected-text editing
 - WAV 16 kHz mono microphone recording with temporary-file cleanup
 - Alibaba `qwen-audio-3.0-asr-flash` native Base64 audio recognition with personal-dictionary hotwords and `qwen3-asr-flash` compatibility fallback
-- OpenAI-compatible writing provider for Qwen/Doubao-compatible endpoints
+- OpenAI-compatible writing provider for Qwen/DeepSeek/Doubao-compatible endpoints
 - End-to-end ASR → writing transform → result workflow
 - API key storage through the platform secure store
 - macOS native Fn/Fn+Shift/Fn+Space event bridge, enabled by default, with Esc cancellation and suppression of Fn+F-key/media-key false triggers

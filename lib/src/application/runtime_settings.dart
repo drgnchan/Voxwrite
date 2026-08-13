@@ -7,6 +7,7 @@ const translationTargetStorageKey = 'runtime_translation_target';
 const runtimeCloudVendorStorageKey = 'runtime_cloud_vendor';
 const runtimeCloudBaseUrlStorageKey = 'runtime_cloud_base_url';
 const runtimeWritingModelStorageKey = 'runtime_writing_model';
+const runtimeSpeechBaseUrlStorageKey = 'runtime_speech_base_url';
 const runtimeSpeechModelStorageKey = 'runtime_speech_model';
 const runtimeDomainBackgroundStorageKey = 'runtime_domain_background';
 const runtimeGlobalShortcutStorageKey = 'runtime_global_shortcut';
@@ -25,28 +26,32 @@ const supportedTranslationTargets = <String>[
 
 class RuntimeSettings {
   const RuntimeSettings({
-    this.cloud = const CloudProviderSettings(),
+    this.writing = const WritingProviderSettings(),
+    this.speech = const SpeechProviderSettings(),
     this.globalShortcutEnabled = true,
     this.autoStopOnSilence = true,
     this.translationTarget = 'English',
     this.domainBackground = '',
   });
 
-  final CloudProviderSettings cloud;
+  final WritingProviderSettings writing;
+  final SpeechProviderSettings speech;
   final bool globalShortcutEnabled;
   final bool autoStopOnSilence;
   final String translationTarget;
   final String domainBackground;
 
   RuntimeSettings copyWith({
-    CloudProviderSettings? cloud,
+    WritingProviderSettings? writing,
+    SpeechProviderSettings? speech,
     bool? globalShortcutEnabled,
     bool? autoStopOnSilence,
     String? translationTarget,
     String? domainBackground,
   }) {
     return RuntimeSettings(
-      cloud: cloud ?? this.cloud,
+      writing: writing ?? this.writing,
+      speech: speech ?? this.speech,
       globalShortcutEnabled:
           globalShortcutEnabled ?? this.globalShortcutEnabled,
       autoStopOnSilence: autoStopOnSilence ?? this.autoStopOnSilence,
@@ -64,19 +69,24 @@ Future<RuntimeSettings> loadRuntimeSettings(
   final vendor = CloudProviderVendor.values
       .where((value) => value.name == vendorName)
       .firstOrNull;
-  final selectedVendor = vendor ?? defaults.cloud.vendor;
+  final writingVendor = vendor ?? defaults.writing.vendor;
   return RuntimeSettings(
-    cloud: CloudProviderSettings(
-      vendor: selectedVendor,
+    writing: WritingProviderSettings(
+      vendor: writingVendor,
       baseUrl:
           await preferences.getString(runtimeCloudBaseUrlStorageKey) ??
-          selectedVendor.defaultBaseUrl,
-      writingModel:
+          writingVendor.defaultBaseUrl,
+      model:
           await preferences.getString(runtimeWritingModelStorageKey) ??
-          selectedVendor.defaultWritingModel,
-      speechModel:
+          writingVendor.defaultWritingModel,
+    ),
+    speech: SpeechProviderSettings(
+      baseUrl:
+          await preferences.getString(runtimeSpeechBaseUrlStorageKey) ??
+          defaults.speech.baseUrl,
+      model:
           await preferences.getString(runtimeSpeechModelStorageKey) ??
-          selectedVendor.defaultSpeechModel,
+          defaults.speech.model,
     ),
     globalShortcutEnabled:
         await preferences.getBool(runtimeGlobalShortcutStorageKey) ??
@@ -141,42 +151,41 @@ class RuntimeSettingsController extends AsyncNotifier<RuntimeSettings> {
     );
   }
 
-  Future<void> setVendor(CloudProviderVendor vendor) {
+  Future<void> setWritingVendor(CloudProviderVendor vendor) {
     final current = state.requireValue;
-    final cloud = current.cloud.copyWith(
+    final writing = current.writing.copyWith(
       vendor: vendor,
       baseUrl: vendor.defaultBaseUrl,
-      writingModel: vendor.defaultWritingModel,
-      speechModel: vendor.defaultSpeechModel,
+      model: vendor.defaultWritingModel,
     );
-    state = AsyncData(current.copyWith(cloud: cloud));
-    return _enqueueWrite(() => _persistCloud(cloud));
+    state = AsyncData(current.copyWith(writing: writing));
+    return _enqueueWrite(() => _persistWriting(writing));
   }
 
-  Future<void> updateCloud({
-    String? baseUrl,
-    String? writingModel,
-    String? speechModel,
-  }) {
+  Future<void> updateWriting({String? baseUrl, String? model}) {
     final current = state.requireValue;
-    final cloud = current.cloud.copyWith(
-      baseUrl: baseUrl,
-      writingModel: writingModel,
-      speechModel: speechModel,
-    );
-    state = AsyncData(current.copyWith(cloud: cloud));
+    final writing = current.writing.copyWith(baseUrl: baseUrl, model: model);
+    state = AsyncData(current.copyWith(writing: writing));
     return _enqueueWrite(() async {
       if (baseUrl != null) {
         await _preferences.setString(runtimeCloudBaseUrlStorageKey, baseUrl);
       }
-      if (writingModel != null) {
-        await _preferences.setString(
-          runtimeWritingModelStorageKey,
-          writingModel,
-        );
+      if (model != null) {
+        await _preferences.setString(runtimeWritingModelStorageKey, model);
       }
-      if (speechModel != null) {
-        await _preferences.setString(runtimeSpeechModelStorageKey, speechModel);
+    });
+  }
+
+  Future<void> updateSpeech({String? baseUrl, String? model}) {
+    final current = state.requireValue;
+    final speech = current.speech.copyWith(baseUrl: baseUrl, model: model);
+    state = AsyncData(current.copyWith(speech: speech));
+    return _enqueueWrite(() async {
+      if (baseUrl != null) {
+        await _preferences.setString(runtimeSpeechBaseUrlStorageKey, baseUrl);
+      }
+      if (model != null) {
+        await _preferences.setString(runtimeSpeechModelStorageKey, model);
       }
     });
   }
@@ -190,12 +199,11 @@ class RuntimeSettingsController extends AsyncNotifier<RuntimeSettings> {
     return operation;
   }
 
-  Future<void> _persistCloud(CloudProviderSettings cloud) async {
+  Future<void> _persistWriting(WritingProviderSettings writing) async {
     await Future.wait<void>([
-      _preferences.setString(runtimeCloudVendorStorageKey, cloud.vendor.name),
-      _preferences.setString(runtimeCloudBaseUrlStorageKey, cloud.baseUrl),
-      _preferences.setString(runtimeWritingModelStorageKey, cloud.writingModel),
-      _preferences.setString(runtimeSpeechModelStorageKey, cloud.speechModel),
+      _preferences.setString(runtimeCloudVendorStorageKey, writing.vendor.name),
+      _preferences.setString(runtimeCloudBaseUrlStorageKey, writing.baseUrl),
+      _preferences.setString(runtimeWritingModelStorageKey, writing.model),
     ]);
   }
 }

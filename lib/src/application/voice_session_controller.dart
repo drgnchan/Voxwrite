@@ -137,33 +137,39 @@ class VoiceSessionController extends Notifier<VoiceSessionState> {
       }
 
       final runtime = await ref.read(runtimeSettingsProvider.future);
-      final cloud = runtime.cloud;
+      final writing = runtime.writing;
+      final speech = runtime.speech;
       final personalDictionary = await ref.read(
         personalDictionaryProvider.future,
       );
       if (generation != _generation) return;
-      if (cloud.vendor != CloudProviderVendor.alibaba) {
-        throw CloudProviderException(
-          '${cloud.vendor.label}语音识别适配器尚未启用，请暂时选择阿里云百炼。',
-        );
-      }
 
-      final apiKey = await ref
+      final speechApiKey = await ref
           .read(cloudApiKeyStoreProvider)
           .read()
           .timeout(const Duration(seconds: 8));
-      if (apiKey == null || apiKey.trim().isEmpty) {
+      if (speechApiKey == null || speechApiKey.trim().isEmpty) {
         throw const CloudProviderException('请先在设置中安全保存阿里云百炼 API Key。');
+      }
+      final writingApiKey = await ref
+          .read(writingApiKeyStoreProvider)
+          .read()
+          .timeout(const Duration(seconds: 8));
+      if (writingApiKey == null || writingApiKey.trim().isEmpty) {
+        throw const CloudProviderException('请先在设置中安全保存文本模型 API Key。');
       }
 
       final dio = ref.read(dioProvider);
+      const speechDefaults = SpeechProviderSettings();
       final recognizer = AlibabaQwenAsrProvider(
         dio: dio,
-        apiKey: apiKey,
-        baseUrl: cloud.baseUrl,
-        model: cloud.speechModel.trim().isEmpty
-            ? cloud.vendor.defaultSpeechModel
-            : cloud.speechModel.trim(),
+        apiKey: speechApiKey,
+        baseUrl: speech.baseUrl.trim().isEmpty
+            ? speechDefaults.baseUrl
+            : speech.baseUrl.trim(),
+        model: speech.model.trim().isEmpty
+            ? speechDefaults.model
+            : speech.model.trim(),
       );
       final transcript = await recognizer.transcribe(
         audioPath: audioPath,
@@ -174,12 +180,12 @@ class VoiceSessionController extends Notifier<VoiceSessionState> {
 
       final transformer = OpenAiCompatibleWritingProvider(
         dio: dio,
-        apiKey: apiKey,
-        baseUrl: cloud.baseUrl,
-        model: cloud.writingModel,
-        enableThinking: cloud.vendor == CloudProviderVendor.alibaba
-            ? false
-            : null,
+        apiKey: writingApiKey,
+        baseUrl: writing.baseUrl,
+        model: writing.model.trim().isEmpty
+            ? writing.vendor.defaultWritingModel
+            : writing.model.trim(),
+        extraBody: writing.vendor.disableThinkingFields,
       );
       final output = await transformer.transform(
         WritingRequest(

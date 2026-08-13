@@ -33,6 +33,10 @@ class AndroidVoiceInputController {
   final CloudApiKeyStore _keyStore = CloudApiKeyStore(
     const FlutterSecureStorage(),
   );
+  final CloudApiKeyStore _writingKeyStore = CloudApiKeyStore(
+    const FlutterSecureStorage(),
+    storageKey: writingApiKeyStorageKey,
+  );
   StreamSubscription<double>? _amplitudeSubscription;
   VoiceActivityDetector? _detector;
   DateTime? _startedAt;
@@ -209,31 +213,39 @@ class AndroidVoiceInputController {
         throw const CloudProviderException('录音太短，请重新说一次。');
       }
 
-      final apiKey = await _keyStore.read().timeout(const Duration(seconds: 8));
+      final speechApiKey = await _keyStore.read().timeout(
+        const Duration(seconds: 8),
+      );
       if (generation != _generation) return null;
-      if (apiKey == null || apiKey.trim().isEmpty) {
+      if (speechApiKey == null || speechApiKey.trim().isEmpty) {
         throw const CloudProviderException('请先打开 VoxWrite 保存阿里云 API Key。');
+      }
+      final writingApiKey = await _writingKeyStore.read().timeout(
+        const Duration(seconds: 8),
+      );
+      if (generation != _generation) return null;
+      if (writingApiKey == null || writingApiKey.trim().isEmpty) {
+        throw const CloudProviderException('请先打开 VoxWrite 保存文本模型 API Key。');
       }
       final preferences = SharedPreferencesAsync();
       final runtime = await loadRuntimeSettings(preferences);
       if (generation != _generation) return null;
-      final cloud = runtime.cloud;
-      if (cloud.vendor != CloudProviderVendor.alibaba) {
-        throw CloudProviderException(
-          '${cloud.vendor.label}语音识别适配器尚未启用，请暂时选择阿里云百炼。',
-        );
-      }
+      final writing = runtime.writing;
+      final speech = runtime.speech;
       final dictionary =
           await preferences.getStringList(personalDictionaryStorageKey) ??
           const <String>[];
       if (generation != _generation) return null;
+      const speechDefaults = SpeechProviderSettings();
       final recognizer = AlibabaQwenAsrProvider(
         dio: _dio,
-        apiKey: apiKey,
-        baseUrl: cloud.baseUrl.trim(),
-        model: cloud.speechModel.trim().isEmpty
-            ? cloud.vendor.defaultSpeechModel
-            : cloud.speechModel.trim(),
+        apiKey: speechApiKey,
+        baseUrl: speech.baseUrl.trim().isEmpty
+            ? speechDefaults.baseUrl
+            : speech.baseUrl.trim(),
+        model: speech.model.trim().isEmpty
+            ? speechDefaults.model
+            : speech.model.trim(),
       );
       final transcript = await recognizer.transcribe(
         audioPath: captured.path,
@@ -243,14 +255,12 @@ class AndroidVoiceInputController {
       if (generation != _generation) return null;
       final transformer = OpenAiCompatibleWritingProvider(
         dio: _dio,
-        apiKey: apiKey,
-        baseUrl: cloud.baseUrl.trim(),
-        model: cloud.writingModel.trim().isEmpty
-            ? cloud.vendor.defaultWritingModel
-            : cloud.writingModel.trim(),
-        enableThinking: cloud.vendor == CloudProviderVendor.alibaba
-            ? false
-            : null,
+        apiKey: writingApiKey,
+        baseUrl: writing.baseUrl.trim(),
+        model: writing.model.trim().isEmpty
+            ? writing.vendor.defaultWritingModel
+            : writing.model.trim(),
+        extraBody: writing.vendor.disableThinkingFields,
       );
       final output = await transformer.transform(
         WritingRequest(
