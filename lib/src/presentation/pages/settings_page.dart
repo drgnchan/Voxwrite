@@ -381,7 +381,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                       ? 'Windows 全局 F8'
                       : 'macOS 全局 Fn',
                   subtitle: Platform.isLinux
-                      ? '支持全局 F8 唤起；X11 自动回填，Wayland（KDE 等）首次使用需在系统中授权，结果复制到剪贴板。'
+                      ? '支持全局 F8 唤起；X11 自动回填，Wayland 可开启下方 ydotool 自动回填，否则结果复制到剪贴板。'
                       : Platform.isWindows
                       ? 'Windows 不暴露硬件 Fn 键，因此使用 F8、Shift+F8 和 Ctrl+F8。'
                       : '默认开启；跨应用监听需要辅助功能和输入监控权限。关闭后不再监听 Fn。',
@@ -403,6 +403,20 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                           );
                         },
                       ),
+                      if (Platform.isLinux) ...[
+                        const Divider(),
+                        SwitchListTile.adaptive(
+                          contentPadding: EdgeInsets.zero,
+                          title: const Text('Wayland 自动回填'),
+                          subtitle: const Text(
+                            '静默录音，完成后自动粘贴到当前焦点应用。需安装 ydotool 与 wl-clipboard 并启用 ydotool 服务。',
+                          ),
+                          value: settings.waylandBackfill,
+                          onChanged: (enabled) {
+                            unawaited(controller.setWaylandBackfill(enabled));
+                          },
+                        ),
+                      ],
                       if (_launchAtLoginSupported) ...[
                         const Divider(),
                         SwitchListTile.adaptive(

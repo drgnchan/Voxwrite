@@ -13,6 +13,8 @@
 #include <gtk/gtk.h>
 #include <gio/gio.h>
 
+#include <unistd.h>
+
 #include <cstring>
 #include <memory>
 #include <set>
@@ -406,6 +408,11 @@ class LinuxIntegration::Impl {
       Emit("selectAsk");
     }
     PresentMainWindow();
+    if (auto_backfill_) {
+      // Silent mode keeps the target app focused; notify so the user knows
+      // the voice session actually started.
+      NotifyBackfill("VoxWrite", "正在录音…（再按 F8 停止并处理）");
+    }
   }
 
   void HandlePortalDeactivated(GVariant* parameters) {
@@ -426,9 +433,26 @@ class LinuxIntegration::Impl {
 
   void PresentMainWindow() {
     if (window_ == nullptr) return;
+    if (auto_backfill_) return;  // keep the target app focused for ydotool paste
     // The global shortcut is a user action; raise VoxWrite so the voice
     // session and its cancel/stop controls are visible on Wayland.
     gtk_window_present(window_);
+  }
+
+  void NotifyBackfill(const char* title, const char* message) {
+    // g_spawn_async rewrites argv entries (e.g. to a resolved program path),
+    // so the array must live on the heap; freeing a stack array would free a
+    // stack address and abort. Resolve the binary ourselves and use
+    // G_SPAWN_DEFAULT to keep the spawn path fully deterministic.
+    g_autofree gchar* notify_send = g_find_program_in_path("notify-send");
+    if (notify_send == nullptr) return;
+    gchar** argv = g_new0(gchar*, 4);
+    argv[0] = g_strdup(notify_send);
+    argv[1] = g_strdup(title);
+    argv[2] = g_strdup(message);
+    g_spawn_async(nullptr, argv, nullptr, G_SPAWN_DEFAULT, nullptr, nullptr,
+                  nullptr, nullptr);
+    g_strfreev(argv);
   }
 
   void StopPortalShortcuts() {
@@ -482,6 +506,20 @@ class LinuxIntegration::Impl {
         }
       }
       SetSessionActive(active);
+      response = FL_METHOD_RESPONSE(fl_method_success_response_new(nullptr));
+    } else if (strcmp(method, "setWaylandBackfill") == 0) {
+      bool enabled = false;
+      FlValue* arguments = fl_method_call_get_args(method_call);
+      if (arguments != nullptr &&
+          fl_value_get_type(arguments) == FL_VALUE_TYPE_MAP) {
+        FlValue* enabled_value =
+            fl_value_lookup_string(arguments, "enabled");
+        if (enabled_value != nullptr &&
+            fl_value_get_type(enabled_value) == FL_VALUE_TYPE_BOOL) {
+          enabled = fl_value_get_bool(enabled_value);
+        }
+      }
+      auto_backfill_ = enabled;
       response = FL_METHOD_RESPONSE(fl_method_success_response_new(nullptr));
     } else {
       response = FL_METHOD_RESPONSE(fl_method_not_implemented_response_new());
@@ -572,44 +610,118 @@ class LinuxIntegration::Impl {
       return true;
     }
 #ifdef GDK_WINDOWING_X11
-    if (!EnsureX11() || !IsUsableWindow(display_, target_window_)) {
-      ClearTarget();
-      return false;
-    }
+    if (EnsureX11()) {
+      if (!IsUsableWindow(display_, target_window_)) {
+        ClearTarget();
+        return false;
+      }
 
-    GtkClipboard* clipboard = gtk_clipboard_get(GDK_SELECTION_CLIPBOARD);
-    gtk_clipboard_set_text(clipboard, text.c_str(),
-                           static_cast<gint>(text.size()));
-    gtk_clipboard_store(clipboard);
+      GtkClipboard* clipboard = gtk_clipboard_get(GDK_SELECTION_CLIPBOARD);
+      gtk_clipboard_set_text(clipboard, text.c_str(),
+                             static_cast<gint>(text.size()));
+      gtk_clipboard_store(clipboard);
 
-    if (!ActivateTargetWindow()) {
-      ClearTarget();
-      return false;
-    }
-    g_usleep(160 * 1000);
-    if (ActiveWindow() != target_window_) {
-      ClearTarget();
-      return false;
-    }
+      if (!ActivateTargetWindow()) {
+        ClearTarget();
+        return false;
+      }
+      g_usleep(160 * 1000);
+      if (ActiveWindow() != target_window_) {
+        ClearTarget();
+        return false;
+      }
 
-    const KeyCode control = XKeysymToKeycode(display_, XK_Control_L);
-    const KeyCode v = XKeysymToKeycode(display_, XK_v);
-    if (control == 0 || v == 0) {
-      ClearTarget();
-      return false;
-    }
+      const KeyCode control = XKeysymToKeycode(display_, XK_Control_L);
+      const KeyCode v = XKeysymToKeycode(display_, XK_v);
+      if (control == 0 || v == 0) {
+        ClearTarget();
+        return false;
+      }
 
-    bool sent = XTestFakeKeyEvent(display_, control, True, CurrentTime) != 0;
-    sent = XTestFakeKeyEvent(display_, v, True, CurrentTime) != 0 && sent;
-    sent = XTestFakeKeyEvent(display_, v, False, CurrentTime) != 0 && sent;
-    sent =
-        XTestFakeKeyEvent(display_, control, False, CurrentTime) != 0 && sent;
-    XFlush(display_);
-    ClearTarget();
-    return sent;
-#else
-    return false;
+      bool sent = XTestFakeKeyEvent(display_, control, True, CurrentTime) != 0;
+      sent = XTestFakeKeyEvent(display_, v, True, CurrentTime) != 0 && sent;
+      sent = XTestFakeKeyEvent(display_, v, False, CurrentTime) != 0 && sent;
+      sent =
+          XTestFakeKeyEvent(display_, control, False, CurrentTime) != 0 && sent;
+      XFlush(display_);
+      ClearTarget();
+      return sent;
+    }
 #endif
+    // Native Wayland: inject a paste through ydotool (kernel uinput) into the
+    // still-focused target application. Falls back to the clipboard in Dart
+    // when the tool or its daemon is unavailable.
+    if (auto_backfill_) {
+      return InsertTextViaYdotool(text);
+    }
+    return false;
+  }
+
+  bool InsertTextViaYdotool(const std::string& text) {
+    // GTK's own clipboard claim proved unreliable for a window that receives
+    // no fresh input serial, so hand the Wayland clipboard to wl-copy: it
+    // claims the selection and keeps serving the data in the background.
+    // Injecting the paste before the compositor sees the new owner would
+    // paste whatever the previous owner (e.g. the clipboard manager) holds.
+    g_autofree gchar* wl_copy_path = g_find_program_in_path("wl-copy");
+    if (wl_copy_path == nullptr) {
+      g_warning("VoxWrite: wl-copy is unavailable; falling back to the "
+                "clipboard");
+      return false;
+    }
+
+    gchar** copy_argv = g_new0(gchar*, 2);
+    copy_argv[0] = g_strdup(wl_copy_path);
+    gint stdin_fd = -1;
+    g_autoptr(GError) copy_error = nullptr;
+    const gboolean copy_launched = g_spawn_async_with_pipes(
+        nullptr, copy_argv, nullptr, G_SPAWN_DEFAULT, nullptr, nullptr,
+        nullptr, &stdin_fd, nullptr, nullptr, &copy_error);
+    g_strfreev(copy_argv);
+    if (!copy_launched) {
+      g_warning("VoxWrite: wl-copy spawn failed: %s",
+                copy_error != nullptr ? copy_error->message : "unknown error");
+      return false;
+    }
+    // Feed the text and close stdin so wl-copy claims the selection.
+    const ssize_t written = write(stdin_fd, text.data(), text.size());
+    close(stdin_fd);
+    if (written != static_cast<ssize_t>(text.size())) {
+      g_warning("VoxWrite: failed to feed wl-copy (%zd of %zu bytes)",
+                written, text.size());
+      return false;
+    }
+    // wl-copy reads stdin, claims the selection, and keeps serving it in the
+    // background; give it and the compositor time to complete the handshake.
+    g_usleep(400 * 1000);
+
+    g_autofree gchar* ydotool_path = g_find_program_in_path("ydotool");
+    if (ydotool_path == nullptr) {
+      g_warning("VoxWrite: ydotool is unavailable; falling back to the "
+                "clipboard");
+      return false;
+    }
+    // ydotool key 29:1 47:1 47:0 29:0 — LeftCtrl down, V down, V up, up.
+    // Keep argv on the heap: g_spawn_* may rewrite argv entries in place.
+    gchar** argv = g_new0(gchar*, 7);
+    argv[0] = g_strdup(ydotool_path);
+    argv[1] = g_strdup("key");
+    argv[2] = g_strdup("29:1");
+    argv[3] = g_strdup("47:1");
+    argv[4] = g_strdup("47:0");
+    argv[5] = g_strdup("29:0");
+    gint status = 0;
+    g_autoptr(GError) error = nullptr;
+    const gboolean launched =
+        g_spawn_sync(nullptr, argv, nullptr, G_SPAWN_DEFAULT, nullptr, nullptr,
+                     nullptr, nullptr, &status, &error);
+    g_strfreev(argv);
+    if (!launched) {
+      g_warning("VoxWrite: ydotool spawn failed: %s",
+                error != nullptr ? error->message : "unknown error");
+      return false;
+    }
+    return g_spawn_check_wait_status(status, nullptr) == TRUE;
   }
 
   void ClearTarget() {
@@ -802,6 +914,7 @@ class LinuxIntegration::Impl {
 
   bool shortcut_listening_ = false;
   bool session_active_ = false;
+  bool auto_backfill_ = false;
   GtkWindow* window_ = nullptr;
   GDBusConnection* portal_connection_ = nullptr;
   gchar* portal_session_handle_ = nullptr;

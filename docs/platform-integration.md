@@ -32,7 +32,15 @@ On an **X11 session**, the native runner grabs these shortcuts, remembers the `_
 
 On a **Wayland session**, the native runner registers F8 / Shift+F8 / Ctrl+F8 through the xdg-desktop-portal **GlobalShortcuts** interface on compositors that implement it (KDE Plasma 5.27+, GNOME 48+, Hyprland). The first use shows a compositor authorization prompt; after approval the shortcuts work globally and VoxWrite raises its window so the session is visible and cancellable. Compositors without the portal (sway/wlroots, older GNOME) keep the in-app-only fallback.
 
-Wayland security still prevents an ordinary application from identifying/focusing another client's window or injecting a paste, so after processing VoxWrite copies the result to the clipboard instead of inserting it, Ask mode cannot ground on another app's text selection, and the global `Esc` cancel is unavailable (cancel from the VoxWrite window). Log in with an X11 session for the complete insert workflow.
+Wayland security still prevents an ordinary application from identifying/focusing another client's window or injecting a paste, so after processing VoxWrite copies the result to the clipboard instead of inserting it, Ask mode cannot ground on another app's text selection, and the global `Esc` cancel is unavailable (cancel from the VoxWrite window). To get true automatic insertion on Wayland, enable the **Wayland 自动回填** setting and install the kernel-level input injector:
+
+```bash
+sudo dnf install ydotool wl-clipboard
+sudo systemctl enable --now ydotool
+sudo usermod -aG input $USER   # then log out and back in
+```
+
+With auto-backfill enabled VoxWrite records silently (it no longer raises its window, so the focused application keeps focus), publishes the result through `wl-copy`, and injects Ctrl+V through `ydotool key` after processing; a desktop notification reports when recording starts. If the tools are missing, it silently falls back to the clipboard. Log in with an X11 session for the complete insert workflow without the extra tool.
 
 Build prerequisites on Debian/Ubuntu include Flutter's normal Linux desktop dependencies plus the packages used by VoxWrite and its plugins:
 

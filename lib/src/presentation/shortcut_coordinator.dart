@@ -115,6 +115,7 @@ class _ShortcutCoordinatorState extends ConsumerState<ShortcutCoordinator> {
         },
       );
       _subscribed = true;
+      await _syncBackfillSetting();
     } catch (error, stackTrace) {
       debugPrint('VoxWriteShortcut(Dart): setup failed: $error');
       debugPrintStack(stackTrace: stackTrace);
@@ -122,6 +123,12 @@ class _ShortcutCoordinatorState extends ConsumerState<ShortcutCoordinator> {
     } finally {
       _connecting = false;
     }
+  }
+
+  Future<void> _syncBackfillSetting() async {
+    final enabled =
+        ref.read(runtimeSettingsProvider).value?.waylandBackfill ?? false;
+    await _bridge.setWaylandBackfill(enabled);
   }
 
   bool get _shortcutShouldBeEnabled =>
@@ -174,6 +181,10 @@ class _ShortcutCoordinatorState extends ConsumerState<ShortcutCoordinator> {
         VoiceSessionPhase.failed => false,
       };
       unawaited(_bridge.setSessionActive(active));
+    });
+    ref.listen<AsyncValue<RuntimeSettings>>(runtimeSettingsProvider, (_, next) {
+      final enabled = next.value?.waylandBackfill ?? false;
+      unawaited(_bridge.setWaylandBackfill(enabled));
     });
     final enabled =
         (Platform.isMacOS || Platform.isWindows || Platform.isLinux) &&

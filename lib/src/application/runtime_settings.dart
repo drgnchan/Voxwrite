@@ -12,6 +12,7 @@ const runtimeSpeechModelStorageKey = 'runtime_speech_model';
 const runtimeDomainBackgroundStorageKey = 'runtime_domain_background';
 const runtimeGlobalShortcutStorageKey = 'runtime_global_shortcut';
 const runtimeAutoStopStorageKey = 'runtime_auto_stop_silence';
+const runtimeWaylandBackfillStorageKey = 'runtime_wayland_backfill';
 
 const supportedTranslationTargets = <String>[
   'English',
@@ -30,6 +31,7 @@ class RuntimeSettings {
     this.speech = const SpeechProviderSettings(),
     this.globalShortcutEnabled = true,
     this.autoStopOnSilence = true,
+    this.waylandBackfill = false,
     this.translationTarget = 'English',
     this.domainBackground = '',
   });
@@ -38,6 +40,7 @@ class RuntimeSettings {
   final SpeechProviderSettings speech;
   final bool globalShortcutEnabled;
   final bool autoStopOnSilence;
+  final bool waylandBackfill;
   final String translationTarget;
   final String domainBackground;
 
@@ -46,6 +49,7 @@ class RuntimeSettings {
     SpeechProviderSettings? speech,
     bool? globalShortcutEnabled,
     bool? autoStopOnSilence,
+    bool? waylandBackfill,
     String? translationTarget,
     String? domainBackground,
   }) {
@@ -55,6 +59,7 @@ class RuntimeSettings {
       globalShortcutEnabled:
           globalShortcutEnabled ?? this.globalShortcutEnabled,
       autoStopOnSilence: autoStopOnSilence ?? this.autoStopOnSilence,
+      waylandBackfill: waylandBackfill ?? this.waylandBackfill,
       translationTarget: translationTarget ?? this.translationTarget,
       domainBackground: domainBackground ?? this.domainBackground,
     );
@@ -94,6 +99,9 @@ Future<RuntimeSettings> loadRuntimeSettings(
     autoStopOnSilence:
         await preferences.getBool(runtimeAutoStopStorageKey) ??
         defaults.autoStopOnSilence,
+    waylandBackfill:
+        await preferences.getBool(runtimeWaylandBackfillStorageKey) ??
+        defaults.waylandBackfill,
     translationTarget:
         await preferences.getString(translationTargetStorageKey) ??
         defaults.translationTarget,
@@ -131,6 +139,14 @@ class RuntimeSettingsController extends AsyncNotifier<RuntimeSettings> {
     state = AsyncData(current.copyWith(autoStopOnSilence: enabled));
     return _enqueueWrite(
       () => _preferences.setBool(runtimeAutoStopStorageKey, enabled),
+    );
+  }
+
+  Future<void> setWaylandBackfill(bool enabled) {
+    final current = state.requireValue;
+    state = AsyncData(current.copyWith(waylandBackfill: enabled));
+    return _enqueueWrite(
+      () => _preferences.setBool(runtimeWaylandBackfillStorageKey, enabled),
     );
   }
 

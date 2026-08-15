@@ -115,6 +115,17 @@ class GlobalShortcutBridge {
     }
   }
 
+  Future<void> setWaylandBackfill(bool enabled) async {
+    if (!Platform.isLinux) return;
+    try {
+      await _methods.invokeMethod<void>('setWaylandBackfill', {
+        'enabled': enabled,
+      });
+    } on MissingPluginException {
+      // Widget tests do not install a desktop native bridge.
+    }
+  }
+
   Future<void> openAccessibilitySettings() async {
     if (!Platform.isMacOS) return;
     try {
