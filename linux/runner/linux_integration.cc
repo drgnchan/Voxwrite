@@ -11,6 +11,7 @@
 #include <gdk/gdkx.h>
 #endif
 #include <gtk/gtk.h>
+#include <gio/gio.h>
 
 #include <cstring>
 #include <memory>
@@ -51,7 +52,8 @@ bool IsUsableWindow(Display* display, Window window) {
 
 class LinuxIntegration::Impl {
  public:
-  explicit Impl(FlBinaryMessenger* messenger) {
+  explicit Impl(FlBinaryMessenger* messenger, GtkWindow* window)
+      : window_(window) {
     g_autoptr(FlStandardMethodCodec) shortcut_codec =
         fl_standard_method_codec_new();
     shortcut_channel_ = fl_event_channel_new(
@@ -126,7 +128,12 @@ class LinuxIntegration::Impl {
     if (shortcut_listening_) return;
     shortcut_listening_ = true;
 #ifdef GDK_WINDOWING_X11
-    if (!EnsureX11()) return;
+    if (!EnsureX11()) {
+      // Native Wayland session: compositors withhold global key grabs, so
+      // register the shortcuts through xdg-desktop-portal instead.
+      StartPortalShortcutsWithFallback();
+      return;
+    }
 
     f8_keycode_ = XKeysymToKeycode(display_, XK_F8);
     escape_keycode_ = XKeysymToKeycode(display_, XK_Escape);
@@ -163,6 +170,8 @@ class LinuxIntegration::Impl {
     gdk_window_add_filter(nullptr, X11EventFilter, this);
     x11_filter_installed_ = true;
     if (session_active_) GrabEscape();
+#else
+    StartPortalShortcutsWithFallback();
 #endif
   }
 
@@ -182,6 +191,267 @@ class LinuxIntegration::Impl {
     }
     f8_down_ = false;
 #endif
+    StopPortalShortcuts();
+  }
+
+  // ---- xdg-desktop-portal GlobalShortcuts (native Wayland) ----
+  //
+  // Wayland security does not let a normal client grab keys, focus another
+  // window, or inject input, so the F8 workflow cannot reuse the X11 path.
+  // On supporting compositors (KDE Plasma 5.27+, GNOME 48+, Hyprland) the
+  // GlobalShortcuts portal delivers user-approved activations to this session;
+  // text delivery keeps the existing clipboard fallback.
+
+  void StartPortalShortcutsWithFallback() {
+    if (StartPortalShortcuts()) return;
+    g_warning("VoxWrite: Wayland global shortcuts are unavailable through the "
+              "xdg-desktop-portal; falling back to in-app use");
+  }
+
+  bool StartPortalShortcuts() {
+    GError* error = nullptr;
+    GDBusConnection* connection =
+        g_bus_get_sync(G_BUS_TYPE_SESSION, nullptr, &error);
+    if (connection == nullptr) {
+      g_warning("VoxWrite: cannot connect to the session bus: %s",
+                error != nullptr ? error->message : "unknown error");
+      g_clear_error(&error);
+      return false;
+    }
+    portal_connection_ = connection;
+
+    GVariantBuilder options;
+    g_variant_builder_init(&options, G_VARIANT_TYPE("a{sv}"));
+    g_variant_builder_add(&options, "{sv}", "handle_token",
+                          g_variant_new_string("vx_create_session"));
+    g_variant_builder_add(&options, "{sv}", "session_handle_token",
+                          g_variant_new_string("vx_session"));
+
+    GVariant* reply = g_dbus_connection_call_sync(
+        connection, "org.freedesktop.portal.Desktop",
+        "/org/freedesktop/portal/desktop",
+        "org.freedesktop.portal.GlobalShortcuts", "CreateSession",
+        g_variant_new("(a{sv})", &options), G_VARIANT_TYPE("(o)"),
+        G_DBUS_CALL_FLAGS_NONE, -1, nullptr, &error);
+    if (reply == nullptr) {
+      g_warning("VoxWrite: portal CreateSession failed: %s",
+                error != nullptr ? error->message : "unknown error");
+      g_clear_error(&error);
+      StopPortalShortcuts();
+      return false;
+    }
+
+    const gchar* request_path = nullptr;
+    g_variant_get(reply, "(o)", &request_path);
+    portal_response_subscription_ = g_dbus_connection_signal_subscribe(
+        connection, "org.freedesktop.portal.Desktop",
+        "org.freedesktop.portal.Request", "Response", request_path, nullptr,
+        G_DBUS_SIGNAL_FLAGS_NONE, PortalResponseCallback, this, nullptr);
+    g_variant_unref(reply);
+    return true;
+  }
+
+  static void PortalResponseCallback(GDBusConnection*, const gchar*, const gchar*,
+                                     const gchar*, const gchar*, GVariant* parameters,
+                                     gpointer user_data) {
+    static_cast<Impl*>(user_data)->HandlePortalResponse(parameters);
+  }
+
+  void HandlePortalResponse(GVariant* parameters) {
+    // Each portal request yields exactly one Response; drop the subscription.
+    if (portal_response_subscription_ != 0) {
+      g_dbus_connection_signal_unsubscribe(portal_connection_,
+                                           portal_response_subscription_);
+      portal_response_subscription_ = 0;
+    }
+    guint response = 1;
+    GVariant* results = nullptr;
+    g_variant_get(parameters, "(u@a{sv})", &response, &results);
+    if (response != 0) {
+      g_warning("VoxWrite: portal request was denied or cancelled (response %u)",
+                response);
+      g_variant_unref(results);
+      StopPortalShortcuts();
+      return;
+    }
+
+    if (portal_session_handle_ == nullptr) {
+      // CreateSession succeeded: extract the session handle and bind shortcuts.
+      const gchar* session_handle = nullptr;
+      if (g_variant_lookup(results, "session_handle", "&s", &session_handle) &&
+          session_handle != nullptr) {
+        portal_session_handle_ = g_strdup(session_handle);
+      }
+      g_variant_unref(results);
+      if (portal_session_handle_ == nullptr) {
+        g_warning("VoxWrite: no session handle in the portal CreateSession "
+                  "response");
+        StopPortalShortcuts();
+        return;
+      }
+      BindPortalShortcuts();
+    } else {
+      // BindShortcuts succeeded: shortcut activations now flow to the session.
+      g_variant_unref(results);
+      SubscribePortalActivations();
+    }
+  }
+
+  void BindPortalShortcuts() {
+    GVariantBuilder shortcuts;
+    g_variant_builder_init(&shortcuts, G_VARIANT_TYPE("a(sa{sv})"));
+    AddShortcut(&shortcuts, "dictation", "开始口述（Dictation）", "F8");
+    AddShortcut(&shortcuts, "translation", "开始翻译（Translation）",
+                "SHIFT+F8");
+    AddShortcut(&shortcuts, "ask", "开始提问（Ask）", "CTRL+F8");
+
+    GVariantBuilder options;
+    g_variant_builder_init(&options, G_VARIANT_TYPE("a{sv}"));
+    g_variant_builder_add(&options, "{sv}", "handle_token",
+                          g_variant_new_string("vx_bind_shortcuts"));
+
+    GError* error = nullptr;
+    GVariant* reply = g_dbus_connection_call_sync(
+        portal_connection_, "org.freedesktop.portal.Desktop",
+        "/org/freedesktop/portal/desktop",
+        "org.freedesktop.portal.GlobalShortcuts", "BindShortcuts",
+        // Note: 'o' in a g_variant_new() format string takes a plain string,
+        // not a GVariant*; use '@o' only when passing an existing variant.
+        g_variant_new("(oa(sa{sv})sa{sv})", portal_session_handle_,
+                      &shortcuts, "", &options),
+        G_VARIANT_TYPE("(o)"), G_DBUS_CALL_FLAGS_NONE, -1, nullptr, &error);
+    if (reply == nullptr) {
+      g_warning("VoxWrite: portal BindShortcuts failed: %s",
+                error != nullptr ? error->message : "unknown error");
+      g_clear_error(&error);
+      StopPortalShortcuts();
+      return;
+    }
+    const gchar* request_path = nullptr;
+    g_variant_get(reply, "(o)", &request_path);
+    portal_response_subscription_ = g_dbus_connection_signal_subscribe(
+        portal_connection_, "org.freedesktop.portal.Desktop",
+        "org.freedesktop.portal.Request", "Response", request_path, nullptr,
+        G_DBUS_SIGNAL_FLAGS_NONE, PortalResponseCallback, this, nullptr);
+    g_variant_unref(reply);
+  }
+
+  static void AddShortcut(GVariantBuilder* shortcuts, const char* id,
+                          const char* description, const char* trigger) {
+    GVariantBuilder options;
+    g_variant_builder_init(&options, G_VARIANT_TYPE("a{sv}"));
+    g_variant_builder_add(&options, "{sv}", "description",
+                          g_variant_new_string(description));
+    g_variant_builder_add(&options, "{sv}", "preferred_trigger",
+                          g_variant_new_string(trigger));
+    g_variant_builder_add(shortcuts, "(sa{sv})", id, &options);
+  }
+
+  void SubscribePortalActivations() {
+    constexpr const char* kInterface = "org.freedesktop.portal.GlobalShortcuts";
+    // Session signals are emitted on the portal's main object path (verified
+    // against xdg-desktop-portal-kde), not on the session object path.
+    // Subscribing without a path and filtering by session_handle in the
+    // handler is robust across portal implementations.
+    portal_activated_subscription_ = g_dbus_connection_signal_subscribe(
+        portal_connection_, "org.freedesktop.portal.Desktop", kInterface,
+        "Activated", nullptr, nullptr, G_DBUS_SIGNAL_FLAGS_NONE,
+        PortalActivatedCallback, this, nullptr);
+    portal_deactivated_subscription_ = g_dbus_connection_signal_subscribe(
+        portal_connection_, "org.freedesktop.portal.Desktop", kInterface,
+        "Deactivated", nullptr, nullptr, G_DBUS_SIGNAL_FLAGS_NONE,
+        PortalDeactivatedCallback, this, nullptr);
+    portal_changed_subscription_ = g_dbus_connection_signal_subscribe(
+        portal_connection_, "org.freedesktop.portal.Desktop", kInterface,
+        "ShortcutsChanged", nullptr, nullptr, G_DBUS_SIGNAL_FLAGS_NONE,
+        PortalChangedCallback, this, nullptr);
+  }
+
+  static void PortalActivatedCallback(GDBusConnection*, const gchar*, const gchar*,
+                                      const gchar*, const gchar*, GVariant* parameters,
+                                      gpointer user_data) {
+    static_cast<Impl*>(user_data)->HandlePortalActivated(parameters);
+  }
+
+  static void PortalDeactivatedCallback(GDBusConnection*, const gchar*, const gchar*,
+                                        const gchar*, const gchar*, GVariant* parameters,
+                                        gpointer user_data) {
+    static_cast<Impl*>(user_data)->HandlePortalDeactivated(parameters);
+  }
+
+  static void PortalChangedCallback(GDBusConnection*, const gchar*, const gchar*,
+                                    const gchar*, const gchar*, GVariant*,
+                                    gpointer) {
+    // The user may edit the triggers in system settings; activations are keyed
+    // by stable shortcut id, so there is nothing to refresh here.
+  }
+
+  void HandlePortalActivated(GVariant* parameters) {
+    // (o session_handle, s shortcut_id, t timestamp, a{sv} options)
+    const gchar* session_handle = nullptr;
+    const gchar* shortcut_id = nullptr;
+    GVariant* timestamp = nullptr;
+    GVariant* options = nullptr;
+    g_variant_get(parameters, "(os*@a{sv})", &session_handle, &shortcut_id,
+                  &timestamp, &options);
+    g_variant_unref(timestamp);
+    g_variant_unref(options);
+    if (g_strcmp0(session_handle, portal_session_handle_) != 0) {
+      return;  // Activation belongs to another application's session.
+    }
+    Emit("fnDown");
+    if (g_strcmp0(shortcut_id, "translation") == 0) {
+      Emit("selectTranslation");
+    } else if (g_strcmp0(shortcut_id, "ask") == 0) {
+      Emit("selectAsk");
+    }
+    PresentMainWindow();
+  }
+
+  void HandlePortalDeactivated(GVariant* parameters) {
+    // (o session_handle, s shortcut_id, t timestamp, a{sv} options)
+    const gchar* session_handle = nullptr;
+    const gchar* shortcut_id = nullptr;
+    GVariant* timestamp = nullptr;
+    GVariant* options = nullptr;
+    g_variant_get(parameters, "(os*@a{sv})", &session_handle, &shortcut_id,
+                  &timestamp, &options);
+    g_variant_unref(timestamp);
+    g_variant_unref(options);
+    if (g_strcmp0(session_handle, portal_session_handle_) != 0) {
+      return;  // Deactivation belongs to another application's session.
+    }
+    Emit("fnUp");
+  }
+
+  void PresentMainWindow() {
+    if (window_ == nullptr) return;
+    // The global shortcut is a user action; raise VoxWrite so the voice
+    // session and its cancel/stop controls are visible on Wayland.
+    gtk_window_present(window_);
+  }
+
+  void StopPortalShortcuts() {
+    if (portal_connection_ == nullptr) return;
+    for (guint* subscription : {&portal_response_subscription_,
+                                &portal_activated_subscription_,
+                                &portal_deactivated_subscription_,
+                                &portal_changed_subscription_}) {
+      if (*subscription != 0) {
+        g_dbus_connection_signal_unsubscribe(portal_connection_, *subscription);
+        *subscription = 0;
+      }
+    }
+    if (portal_session_handle_ != nullptr) {
+      // Best-effort close of the portal session (interface Session::Close).
+      g_dbus_connection_call_sync(
+          portal_connection_, "org.freedesktop.portal.Desktop",
+          portal_session_handle_, "org.freedesktop.portal.Session", "Close",
+          nullptr, nullptr, G_DBUS_CALL_FLAGS_NONE, -1, nullptr, nullptr);
+      g_clear_pointer(&portal_session_handle_, g_free);
+    }
+    g_clear_object(&portal_connection_);
+    portal_connection_ = nullptr;
   }
 
   void SetSessionActive(bool active) {
@@ -532,12 +802,19 @@ class LinuxIntegration::Impl {
 
   bool shortcut_listening_ = false;
   bool session_active_ = false;
+  GtkWindow* window_ = nullptr;
+  GDBusConnection* portal_connection_ = nullptr;
+  gchar* portal_session_handle_ = nullptr;
+  guint portal_response_subscription_ = 0;
+  guint portal_activated_subscription_ = 0;
+  guint portal_deactivated_subscription_ = 0;
+  guint portal_changed_subscription_ = 0;
   FlEventChannel* shortcut_channel_ = nullptr;
   FlMethodChannel* text_channel_ = nullptr;
   FlMethodChannel* permission_channel_ = nullptr;
 };
 
-LinuxIntegration::LinuxIntegration(FlBinaryMessenger* messenger)
-    : impl_(std::make_unique<Impl>(messenger)) {}
+LinuxIntegration::LinuxIntegration(FlBinaryMessenger* messenger, GtkWindow* window)
+    : impl_(std::make_unique<Impl>(messenger, window)) {}
 
 LinuxIntegration::~LinuxIntegration() = default;

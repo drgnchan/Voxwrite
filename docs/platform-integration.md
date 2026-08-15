@@ -30,7 +30,9 @@ Linux uses the same shortcuts as Windows:
 
 On an **X11 session**, the native runner grabs these shortcuts, remembers the `_NET_ACTIVE_WINDOW`, reads selected text from the X11 PRIMARY selection for Ask, and sends one clipboard paste to the captured window after processing.
 
-On a **Wayland session**, compositor security prevents an ordinary application from globally capturing keys, identifying/focusing another client's window, or injecting a paste. VoxWrite remains usable from its own window and copies completed output to the clipboard, but system-wide shortcuts and automatic cross-application insertion are unavailable. Log in with an X11 session for the complete workflow.
+On a **Wayland session**, the native runner registers F8 / Shift+F8 / Ctrl+F8 through the xdg-desktop-portal **GlobalShortcuts** interface on compositors that implement it (KDE Plasma 5.27+, GNOME 48+, Hyprland). The first use shows a compositor authorization prompt; after approval the shortcuts work globally and VoxWrite raises its window so the session is visible and cancellable. Compositors without the portal (sway/wlroots, older GNOME) keep the in-app-only fallback.
+
+Wayland security still prevents an ordinary application from identifying/focusing another client's window or injecting a paste, so after processing VoxWrite copies the result to the clipboard instead of inserting it, Ask mode cannot ground on another app's text selection, and the global `Esc` cancel is unavailable (cancel from the VoxWrite window). Log in with an X11 session for the complete insert workflow.
 
 Build prerequisites on Debian/Ubuntu include Flutter's normal Linux desktop dependencies plus the packages used by VoxWrite and its plugins:
 

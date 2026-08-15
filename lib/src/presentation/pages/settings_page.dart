@@ -381,7 +381,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                       ? 'Windows 全局 F8'
                       : 'macOS 全局 Fn',
                   subtitle: Platform.isLinux
-                      ? 'X11 下支持全局 F8 与自动回填；Wayland 安全模型下请从应用内启动，结果会复制到剪贴板。'
+                      ? '支持全局 F8 唤起；X11 自动回填，Wayland（KDE 等）首次使用需在系统中授权，结果复制到剪贴板。'
                       : Platform.isWindows
                       ? 'Windows 不暴露硬件 Fn 键，因此使用 F8、Shift+F8 和 Ctrl+F8。'
                       : '默认开启；跨应用监听需要辅助功能和输入监控权限。关闭后不再监听 Fn。',

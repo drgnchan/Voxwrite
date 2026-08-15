@@ -2,16 +2,18 @@
 #define RUNNER_LINUX_INTEGRATION_H_
 
 #include <flutter_linux/flutter_linux.h>
+#include <gtk/gtk.h>
 
 #include <memory>
 
 // Owns the Linux-specific global shortcut and cross-application text bridges.
-// Full desktop integration is available on X11. Wayland intentionally falls
-// back to the Flutter UI and clipboard because compositors do not allow apps to
-// capture arbitrary global keys or focus/inject into another client's window.
+// Full desktop integration (global F8, target capture, paste injection) is
+// available on X11. On native Wayland the global F8 shortcuts are registered
+// through the xdg-desktop-portal GlobalShortcuts interface where the
+// compositor supports it, and text delivery falls back to the clipboard.
 class LinuxIntegration {
  public:
-  explicit LinuxIntegration(FlBinaryMessenger* messenger);
+  explicit LinuxIntegration(FlBinaryMessenger* messenger, GtkWindow* window);
   ~LinuxIntegration();
 
   LinuxIntegration(const LinuxIntegration&) = delete;

@@ -78,7 +78,7 @@ static void my_application_activate(GApplication* application) {
   fl_register_plugins(FL_PLUGIN_REGISTRY(view));
   FlEngine* engine = fl_view_get_engine(view);
   self->linux_integration = new LinuxIntegration(
-      fl_engine_get_binary_messenger(engine));
+      fl_engine_get_binary_messenger(engine), window);
 
   gtk_widget_grab_focus(GTK_WIDGET(view));
 }
