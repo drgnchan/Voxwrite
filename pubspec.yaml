@@ -1,7 +1,7 @@
 name: voxwrite
 description: "Cross-platform cloud voice writing assistant"
 publish_to: 'none'
-version: 0.3.27+36
+version: 0.3.28+37
 
 environment:
   sdk: ^3.10.1

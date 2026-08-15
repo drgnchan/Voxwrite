@@ -57,6 +57,7 @@ class VoxWriteInputMethodService : InputMethodService() {
     private var selectedMode = MODE_DICTATION
     private var viewGeneration = 0
     private var operationGeneration = 0
+    private var pendingCancelRunnable: Runnable? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -110,7 +111,15 @@ class VoxWriteInputMethodService : InputMethodService() {
 
     override fun onStartInput(attribute: EditorInfo?, restarting: Boolean) {
         super.onStartInput(attribute, restarting)
-        selectedMode = MODE_DICTATION
+        // Rotating the device tears down and immediately re-establishes the
+        // input connection, which would otherwise look like a genuine
+        // dismissal. If a voice session is still active (its cancellation is
+        // still pending), keep it — and keep the selected mode — instead of
+        // treating this as a fresh start.
+        cancelDeferredCancellation()
+        if (!starting && !recording && !processing) {
+            selectedMode = MODE_DICTATION
+        }
         updateModeButtons()
         showSelfIfWindowHidden()
     }
@@ -375,6 +384,7 @@ class VoxWriteInputMethodService : InputMethodService() {
     }
 
     private fun cancelRecordingAndReturn() {
+        cancelDeferredCancellation()
         val methodChannel = channel
         val operation = ++operationGeneration
         starting = false
@@ -509,31 +519,60 @@ class VoxWriteInputMethodService : InputMethodService() {
 
     override fun onFinishInputView(finishingInput: Boolean) {
         viewGeneration++
-        cancelActiveVoiceSession()
+        deferCancelActiveVoiceSession()
         super.onFinishInputView(finishingInput)
     }
 
     override fun onWindowHidden() {
         viewGeneration++
-        cancelActiveVoiceSession()
+        deferCancelActiveVoiceSession()
         super.onWindowHidden()
     }
 
     override fun onFinishInput() {
         viewGeneration++
-        cancelActiveVoiceSession()
+        deferCancelActiveVoiceSession()
         super.onFinishInput()
     }
 
     private fun cancelActiveVoiceSession() {
         if (!starting && !recording && !processing) return
+        cancelDeferredCancellation()
         operationGeneration++
         channel?.invokeMethod("cancel", null)
         setRecordingState(false, "已取消")
     }
 
+    /**
+     * Schedules a graceful cancellation of the active voice session. When the
+     * screen rotates, the host app tears down and immediately re-establishes
+     * the input connection, firing [onFinishInput], [onFinishInputView] and
+     * [onWindowHidden] in between. Cancelling immediately there would discard
+     * a recording the user did not intend to stop. Instead, cancel only if the
+     * input connection is not re-established within [DEFER_CANCEL_DELAY_MS]
+     * — a genuine dismissal rather than a transient configuration change.
+     */
+    private fun deferCancelActiveVoiceSession() {
+        if (!starting && !recording && !processing) return
+        cancelDeferredCancellation()
+        pendingCancelRunnable = Runnable {
+            pendingCancelRunnable = null
+            cancelActiveVoiceSession()
+        }.also {
+            mainHandler.postDelayed(it, DEFER_CANCEL_DELAY_MS)
+        }
+    }
+
+    private fun cancelDeferredCancellation() {
+        pendingCancelRunnable?.let {
+            mainHandler.removeCallbacks(it)
+            pendingCancelRunnable = null
+        }
+    }
+
     override fun onDestroy() {
         mainHandler.removeCallbacksAndMessages(null)
+        pendingCancelRunnable = null
         channel?.setMethodCallHandler(null)
         audioPlaybackChannel?.setMethodCallHandler(null)
         flutterEngine?.destroy()
@@ -646,6 +685,7 @@ class VoxWriteInputMethodService : InputMethodService() {
         const val MODE_TRANSLATION = "translation"
         const val AUTO_START_DELAY_MS = 180L
         const val SHOW_SELF_DELAY_MS = 150L
+        const val DEFER_CANCEL_DELAY_MS = 1000L
         const val RETURN_DELAY_MS = 180L
     }
 }
