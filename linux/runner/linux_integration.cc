@@ -13,8 +13,11 @@
 #include <gtk/gtk.h>
 #include <gio/gio.h>
 
+#include <signal.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
+#include <cerrno>
 #include <cstring>
 #include <memory>
 #include <set>
@@ -27,6 +30,11 @@ FlMethodResponse* SuccessBool(bool value) {
   g_autoptr(FlValue) result = fl_value_new_bool(value);
   return FL_METHOD_RESPONSE(fl_method_success_response_new(result));
 }
+
+// How long the backfill text stays on the clipboard after the paste was
+// injected before it is removed again. Must be long enough for the target
+// application to consume the injected paste.
+constexpr guint kClipboardCleanupDelayMs = 1000;
 
 #ifdef GDK_WINDOWING_X11
 bool x11_error_occurred = false;
@@ -56,6 +64,10 @@ class LinuxIntegration::Impl {
  public:
   explicit Impl(FlBinaryMessenger* messenger, GtkWindow* window)
       : window_(window) {
+    // The backfill writes the transcription into wl-copy's stdin pipe; an
+    // outdated wl-copy that exits on unknown options would otherwise kill
+    // this process with SIGPIPE.
+    signal(SIGPIPE, SIG_IGN);
     g_autoptr(FlStandardMethodCodec) shortcut_codec =
         fl_standard_method_codec_new();
     shortcut_channel_ = fl_event_channel_new(
@@ -83,6 +95,7 @@ class LinuxIntegration::Impl {
 
   ~Impl() {
     StopShortcutMonitoring();
+    CancelClipboardCleanup();
     if (shortcut_channel_ != nullptr) {
       fl_event_channel_set_stream_handlers(shortcut_channel_, nullptr, nullptr,
                                            nullptr, nullptr);
@@ -390,8 +403,8 @@ class LinuxIntegration::Impl {
 
   void HandlePortalActivated(GVariant* parameters) {
     // (o session_handle, s shortcut_id, t timestamp, a{sv} options)
-    const gchar* session_handle = nullptr;
-    const gchar* shortcut_id = nullptr;
+    g_autofree gchar* session_handle = nullptr;
+    g_autofree gchar* shortcut_id = nullptr;
     GVariant* timestamp = nullptr;
     GVariant* options = nullptr;
     g_variant_get(parameters, "(os*@a{sv})", &session_handle, &shortcut_id,
@@ -417,8 +430,8 @@ class LinuxIntegration::Impl {
 
   void HandlePortalDeactivated(GVariant* parameters) {
     // (o session_handle, s shortcut_id, t timestamp, a{sv} options)
-    const gchar* session_handle = nullptr;
-    const gchar* shortcut_id = nullptr;
+    g_autofree gchar* session_handle = nullptr;
+    g_autofree gchar* shortcut_id = nullptr;
     GVariant* timestamp = nullptr;
     GVariant* options = nullptr;
     g_variant_get(parameters, "(os*@a{sv})", &session_handle, &shortcut_id,
@@ -617,16 +630,37 @@ class LinuxIntegration::Impl {
       }
 
       GtkClipboard* clipboard = gtk_clipboard_get(GDK_SELECTION_CLIPBOARD);
-      gtk_clipboard_set_text(clipboard, text.c_str(),
-                             static_cast<gint>(text.size()));
-      gtk_clipboard_store(clipboard);
+      // Remember any text already on the clipboard so the backfill text can
+      // be removed again once the target app has consumed the paste, matching
+      // the macOS bridge. The transient text is deliberately not stored with
+      // gtk_clipboard_store(): it must not enter clipboard-manager history.
+      gchar* previous_raw = gtk_clipboard_wait_for_text(clipboard);
+      std::string* previous_text =
+          previous_raw != nullptr ? new std::string(previous_raw) : nullptr;
+      g_free(previous_raw);
+      // Offer the text together with KDE's password-manager hint so clipboard
+      // managers such as Klipper do not persist the transcription in their
+      // history.
+      auto* transient_text = new std::string(text);
+      GtkTargetEntry targets[] = {
+          {const_cast<gchar*>("UTF8_STRING"), 0, 0},
+          {const_cast<gchar*>("text/plain;charset=utf-8"), 0, 0},
+          {const_cast<gchar*>("TEXT"), 0, 0},
+          {const_cast<gchar*>("STRING"), 0, 0},
+          {const_cast<gchar*>("x-kde-passwordManagerHint"), 0, 0},
+      };
+      gtk_clipboard_set_with_data(clipboard, targets, G_N_ELEMENTS(targets),
+                                  ClipboardTextGet, ClipboardTextClear,
+                                  transient_text);
 
       if (!ActivateTargetWindow()) {
+        delete previous_text;
         ClearTarget();
         return false;
       }
       g_usleep(160 * 1000);
       if (ActiveWindow() != target_window_) {
+        delete previous_text;
         ClearTarget();
         return false;
       }
@@ -634,6 +668,7 @@ class LinuxIntegration::Impl {
       const KeyCode control = XKeysymToKeycode(display_, XK_Control_L);
       const KeyCode v = XKeysymToKeycode(display_, XK_v);
       if (control == 0 || v == 0) {
+        delete previous_text;
         ClearTarget();
         return false;
       }
@@ -644,6 +679,14 @@ class LinuxIntegration::Impl {
       sent =
           XTestFakeKeyEvent(display_, control, False, CurrentTime) != 0 && sent;
       XFlush(display_);
+      if (sent) {
+        ClipboardCleanup cleanup;
+        cleanup.inserted_text = text;
+        cleanup.previous_text = previous_text;
+        ScheduleClipboardCleanup(cleanup);
+      } else {
+        delete previous_text;
+      }
       ClearTarget();
       return sent;
     }
@@ -661,6 +704,8 @@ class LinuxIntegration::Impl {
     // GTK's own clipboard claim proved unreliable for a window that receives
     // no fresh input serial, so hand the Wayland clipboard to wl-copy: it
     // claims the selection and keeps serving the data in the background.
+    // --foreground keeps the spawned process as the selection owner so it
+    // can be terminated again once the injected paste has been consumed.
     // Injecting the paste before the compositor sees the new owner would
     // paste whatever the previous owner (e.g. the clipboard manager) holds.
     g_autofree gchar* wl_copy_path = g_find_program_in_path("wl-copy");
@@ -670,17 +715,37 @@ class LinuxIntegration::Impl {
       return false;
     }
 
-    gchar** copy_argv = g_new0(gchar*, 2);
+    // Remember the text the clipboard held before the backfill. KDE's
+    // Klipper re-offers the last clipboard content when the owner exits
+    // ("prevent empty clipboard"), so it is asked to restore this text
+    // during cleanup.
+    std::string* previous_text = nullptr;
+    g_autoptr(GDBusConnection) bus_connection = SessionBus();
+    if (bus_connection != nullptr) {
+      g_autofree gchar* previous =
+          KlipperGetClipboardContents(bus_connection);
+      if (previous != nullptr && previous[0] != '\0') {
+        previous_text = new std::string(previous);
+      }
+    }
+
+    gchar** copy_argv = g_new0(gchar*, 4);
     copy_argv[0] = g_strdup(wl_copy_path);
+    copy_argv[1] = g_strdup("--foreground");
+    // --sensitive also offers x-kde-passwordManagerHint, which keeps KDE's
+    // Klipper from persisting the transcription in its clipboard history.
+    copy_argv[2] = g_strdup("--sensitive");
     gint stdin_fd = -1;
+    GPid wl_copy_pid = 0;
     g_autoptr(GError) copy_error = nullptr;
     const gboolean copy_launched = g_spawn_async_with_pipes(
         nullptr, copy_argv, nullptr, G_SPAWN_DEFAULT, nullptr, nullptr,
-        nullptr, &stdin_fd, nullptr, nullptr, &copy_error);
+        &wl_copy_pid, &stdin_fd, nullptr, nullptr, &copy_error);
     g_strfreev(copy_argv);
     if (!copy_launched) {
       g_warning("VoxWrite: wl-copy spawn failed: %s",
                 copy_error != nullptr ? copy_error->message : "unknown error");
+      delete previous_text;
       return false;
     }
     // Feed the text and close stdin so wl-copy claims the selection.
@@ -689,16 +754,28 @@ class LinuxIntegration::Impl {
     if (written != static_cast<ssize_t>(text.size())) {
       g_warning("VoxWrite: failed to feed wl-copy (%zd of %zu bytes)",
                 written, text.size());
+      delete previous_text;
       return false;
     }
     // wl-copy reads stdin, claims the selection, and keeps serving it in the
     // background; give it and the compositor time to complete the handshake.
     g_usleep(400 * 1000);
+    // Exiting before the paste is injected means wl-copy failed to claim the
+    // selection. Do not inject a paste that would deliver stale clipboard
+    // content. GLib spawns the process through an intermediate helper, so it
+    // is never our direct child and liveness must be probed with kill(pid, 0)
+    // rather than waitpid().
+    if (!ProcessAlive(wl_copy_pid)) {
+      g_warning("VoxWrite: wl-copy exited before claiming the clipboard");
+      delete previous_text;
+      return false;
+    }
 
     g_autofree gchar* ydotool_path = g_find_program_in_path("ydotool");
     if (ydotool_path == nullptr) {
       g_warning("VoxWrite: ydotool is unavailable; falling back to the "
                 "clipboard");
+      delete previous_text;
       return false;
     }
     // ydotool key 29:1 47:1 47:0 29:0 — LeftCtrl down, V down, V up, up.
@@ -719,9 +796,223 @@ class LinuxIntegration::Impl {
     if (!launched) {
       g_warning("VoxWrite: ydotool spawn failed: %s",
                 error != nullptr ? error->message : "unknown error");
+      delete previous_text;
       return false;
     }
-    return g_spawn_check_wait_status(status, nullptr) == TRUE;
+    if (g_spawn_check_wait_status(status, nullptr) != TRUE) {
+      delete previous_text;
+      return false;
+    }
+    // The paste has been injected. The cleanup timer terminates wl-copy and
+    // makes sure the transcription does not linger in the clipboard.
+    ClipboardCleanup cleanup;
+    cleanup.inserted_text = text;
+    cleanup.previous_text = previous_text;
+    cleanup.wl_copy_pid = wl_copy_pid;
+    ScheduleClipboardCleanup(cleanup);
+    return true;
+  }
+
+  struct ClipboardCleanup {
+    // X11: the text injected by the backfill; the clipboard is only touched
+    // again if it still holds exactly this text.
+    std::string inserted_text;
+    // The text the clipboard held before the backfill. Null means the
+    // clipboard held no text.
+    std::string* previous_text = nullptr;
+    // Wayland: the wl-copy process serving the backfill text.
+    GPid wl_copy_pid = 0;
+  };
+
+  static GDBusConnection* SessionBus() {
+    GError* error = nullptr;
+    GDBusConnection* connection =
+        g_bus_get_sync(G_BUS_TYPE_SESSION, nullptr, &error);
+    if (connection == nullptr) {
+      g_warning("VoxWrite: cannot connect to the session bus: %s",
+                error != nullptr ? error->message : "unknown error");
+      g_clear_error(&error);
+    }
+    return connection;
+  }
+
+  static gchar* KlipperGetClipboardContents(GDBusConnection* connection) {
+    if (connection == nullptr) return nullptr;
+    GError* error = nullptr;
+    GVariant* reply = g_dbus_connection_call_sync(
+        connection, "org.kde.klipper", "/klipper",
+        "org.kde.klipper.klipper", "getClipboardContents", nullptr,
+        G_VARIANT_TYPE("(s)"), G_DBUS_CALL_FLAGS_NONE, -1, nullptr, &error);
+    if (reply == nullptr) {
+      g_clear_error(&error);
+      return nullptr;
+    }
+    gchar* text = nullptr;
+    g_variant_get(reply, "(s)", &text);
+    g_variant_unref(reply);
+    return text;
+  }
+
+  static void KlipperSetClipboardContents(GDBusConnection* connection,
+                                          const gchar* text) {
+    if (connection == nullptr || text == nullptr) return;
+    GError* error = nullptr;
+    GVariant* reply = g_dbus_connection_call_sync(
+        connection, "org.kde.klipper", "/klipper",
+        "org.kde.klipper.klipper", "setClipboardContents",
+        g_variant_new("(s)", text), nullptr, G_DBUS_CALL_FLAGS_NONE, -1,
+        nullptr, &error);
+    if (reply != nullptr) {
+      g_variant_unref(reply);
+    } else {
+      g_warning("VoxWrite: Klipper setClipboardContents failed: %s",
+                error != nullptr ? error->message : "unknown error");
+      g_clear_error(&error);
+    }
+  }
+
+  static void KlipperClearClipboardContents(GDBusConnection* connection) {
+    if (connection == nullptr) return;
+    GError* error = nullptr;
+    GVariant* reply = g_dbus_connection_call_sync(
+        connection, "org.kde.klipper", "/klipper",
+        "org.kde.klipper.klipper", "clearClipboardContents", nullptr, nullptr,
+        G_DBUS_CALL_FLAGS_NONE, -1, nullptr, &error);
+    if (reply != nullptr) {
+      g_variant_unref(reply);
+    } else {
+      g_clear_error(&error);
+    }
+  }
+
+  static void ClearWaylandClipboard() {
+    g_autofree gchar* wl_copy_path = g_find_program_in_path("wl-copy");
+    if (wl_copy_path == nullptr) return;
+    gchar** argv = g_new0(gchar*, 3);
+    argv[0] = g_strdup(wl_copy_path);
+    argv[1] = g_strdup("--clear");
+    g_spawn_async(nullptr, argv, nullptr, G_SPAWN_DEFAULT, nullptr, nullptr,
+                  nullptr, nullptr);
+    g_strfreev(argv);
+  }
+
+  static void ClipboardTextGet(GtkClipboard*, GtkSelectionData* selection_data,
+                               guint, gpointer user_data) {
+    const auto* text = static_cast<const std::string*>(user_data);
+    gtk_selection_data_set_text(selection_data, text->c_str(),
+                                static_cast<gint>(text->size()));
+  }
+
+  static void ClipboardTextClear(GtkClipboard*, gpointer user_data) {
+    delete static_cast<std::string*>(user_data);
+  }
+
+  void RestoreViaKlipperIfNeeded(const ClipboardCleanup& cleanup) {
+    g_autoptr(GDBusConnection) connection = SessionBus();
+    if (connection == nullptr) return;
+    g_autofree gchar* current = KlipperGetClipboardContents(connection);
+    if (current == nullptr) return;
+    const bool holds_ours =
+        g_strcmp0(current, cleanup.inserted_text.c_str()) == 0;
+    const bool holds_previous =
+        cleanup.previous_text != nullptr &&
+        g_strcmp0(current, cleanup.previous_text->c_str()) == 0;
+    if (!holds_ours && !holds_previous) {
+      return;  // The user copied something else in the meantime.
+    }
+    if (cleanup.previous_text != nullptr &&
+        !cleanup.previous_text->empty()) {
+      // Re-offer the text that preceded the backfill. Klipper ignores the
+      // sensitive transcription, so its tracked content is normally already
+      // the previous text; re-offering keeps the live clipboard consistent
+      // whether or not "prevent empty clipboard" is enabled.
+      KlipperSetClipboardContents(connection,
+                                  cleanup.previous_text->c_str());
+    } else if (holds_ours) {
+      // No earlier text to restore and Klipper still tracks the
+      // transcription: release the clipboard entirely. Klipper's "prevent
+      // empty clipboard" option may re-offer the transcription anyway; that
+      // behavior is controlled by the desktop, not this app.
+      KlipperClearClipboardContents(connection);
+      ClearWaylandClipboard();
+    }
+  }
+
+  static bool ProcessAlive(GPid pid) {
+    if (pid <= 0) return false;
+    if (kill(pid, 0) == 0) return true;
+    // EPERM means the process exists but is not ours; ESRCH means it is gone.
+    return errno == EPERM;
+  }
+
+  static void TerminateWlCopy(GPid pid) {
+    if (pid <= 0) return;
+    // The spawned process is not a direct child (see InsertTextViaYdotool),
+    // so it cannot be reaped here; SIGTERM makes wl-copy release the
+    // selection and the session subreaper cleans it up.
+    if (ProcessAlive(pid)) {
+      kill(pid, SIGTERM);
+    }
+  }
+
+  void ScheduleClipboardCleanup(const ClipboardCleanup& cleanup) {
+    CancelClipboardCleanup();
+    pending_clipboard_cleanup_ = new ClipboardCleanup(cleanup);
+    clipboard_cleanup_source_ = g_timeout_add(
+        kClipboardCleanupDelayMs, ClipboardCleanupFired, this);
+  }
+
+  static gboolean ClipboardCleanupFired(gpointer user_data) {
+    auto* self = static_cast<Impl*>(user_data);
+    self->clipboard_cleanup_source_ = 0;
+    ClipboardCleanup* cleanup = self->pending_clipboard_cleanup_;
+    self->pending_clipboard_cleanup_ = nullptr;
+    if (cleanup != nullptr) {
+      self->RunClipboardCleanup(*cleanup);
+      delete cleanup;
+    }
+    return G_SOURCE_REMOVE;
+  }
+
+  void RunClipboardCleanup(const ClipboardCleanup& cleanup) {
+    if (cleanup.wl_copy_pid > 0) {
+      // Releasing the selection removes the backfill text from the clipboard.
+      // Klipper may re-offer it afterwards; hand the clipboard back to its
+      // previous content in that case.
+      TerminateWlCopy(cleanup.wl_copy_pid);
+      RestoreViaKlipperIfNeeded(cleanup);
+      return;
+    }
+
+    GtkClipboard* clipboard = gtk_clipboard_get(GDK_SELECTION_CLIPBOARD);
+    // Leave the clipboard alone when it no longer holds the backfill text: a
+    // user copy or another application may have replaced it in the meantime.
+    gchar* current = gtk_clipboard_wait_for_text(clipboard);
+    if (current == nullptr ||
+        g_strcmp0(current, cleanup.inserted_text.c_str()) != 0) {
+      g_free(current);
+      return;
+    }
+    g_free(current);
+
+    if (cleanup.previous_text != nullptr) {
+      gtk_clipboard_set_text(clipboard, cleanup.previous_text->c_str(),
+                             static_cast<gint>(cleanup.previous_text->size()));
+    } else {
+      gtk_clipboard_clear(clipboard);
+      RestoreViaKlipperIfNeeded(cleanup);
+    }
+  }
+
+  void CancelClipboardCleanup() {
+    if (pending_clipboard_cleanup_ != nullptr) {
+      delete pending_clipboard_cleanup_;
+      pending_clipboard_cleanup_ = nullptr;
+    }
+    if (clipboard_cleanup_source_ != 0) {
+      g_source_remove(clipboard_cleanup_source_);
+      clipboard_cleanup_source_ = 0;
+    }
   }
 
   void ClearTarget() {
@@ -911,6 +1202,9 @@ class LinuxIntegration::Impl {
   bool f8_down_ = false;
   bool escape_grabbed_ = false;
 #endif
+
+  guint clipboard_cleanup_source_ = 0;
+  ClipboardCleanup* pending_clipboard_cleanup_ = nullptr;
 
   bool shortcut_listening_ = false;
   bool session_active_ = false;
