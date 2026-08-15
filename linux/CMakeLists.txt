@@ -55,6 +55,7 @@ find_package(PkgConfig REQUIRED)
 pkg_check_modules(GTK REQUIRED IMPORTED_TARGET gtk+-3.0)
 pkg_check_modules(X11 REQUIRED IMPORTED_TARGET x11)
 pkg_check_modules(XTST REQUIRED IMPORTED_TARGET xtst)
+pkg_check_modules(APPINDICATOR REQUIRED IMPORTED_TARGET ayatana-appindicator3-0.1)
 
 # Application build; see runner/CMakeLists.txt.
 add_subdirectory("runner")
@@ -97,6 +98,13 @@ install(TARGETS ${BINARY_NAME} RUNTIME DESTINATION "${CMAKE_INSTALL_PREFIX}"
   COMPONENT Runtime)
 
 install(FILES "${FLUTTER_ICU_DATA_FILE}" DESTINATION "${INSTALL_BUNDLE_DATA_DIR}"
+  COMPONENT Runtime)
+
+# Bundle the system-tray icon theme (close-to-tray). The path must end in
+# "icons" and contain a proper hicolor theme so both KDE's StatusNotifierItem
+# host and appindicator's GTK icon lookup can resolve "voxwrite-tray".
+install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/runner/icons/"
+  DESTINATION "${INSTALL_BUNDLE_DATA_DIR}/icons"
   COMPONENT Runtime)
 
 install(FILES "${FLUTTER_LIBRARY}" DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"

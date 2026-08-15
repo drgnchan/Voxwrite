@@ -91,6 +91,14 @@ class LinuxIntegration::Impl {
         FL_METHOD_CODEC(permission_codec));
     fl_method_channel_set_method_call_handler(
         permission_channel_, PermissionMethodCall, this, nullptr);
+
+    g_autoptr(FlStandardMethodCodec) lifecycle_codec =
+        fl_standard_method_codec_new();
+    lifecycle_channel_ = fl_method_channel_new(
+        messenger, "dev.raymond.voxwrite/lifecycle",
+        FL_METHOD_CODEC(lifecycle_codec));
+    fl_method_channel_set_method_call_handler(
+        lifecycle_channel_, LifecycleMethodCall, this, nullptr);
   }
 
   ~Impl() {
@@ -108,9 +116,14 @@ class LinuxIntegration::Impl {
       fl_method_channel_set_method_call_handler(permission_channel_, nullptr,
                                                 nullptr, nullptr);
     }
+    if (lifecycle_channel_ != nullptr) {
+      fl_method_channel_set_method_call_handler(lifecycle_channel_, nullptr,
+                                                nullptr, nullptr);
+    }
     g_clear_object(&permission_channel_);
     g_clear_object(&text_channel_);
     g_clear_object(&shortcut_channel_);
+    g_clear_object(&lifecycle_channel_);
   }
 
  private:
@@ -137,6 +150,11 @@ class LinuxIntegration::Impl {
                                    FlMethodCall* method_call,
                                    gpointer user_data) {
     static_cast<Impl*>(user_data)->HandlePermissionMethodCall(method_call);
+  }
+
+  static void LifecycleMethodCall(FlMethodChannel*, FlMethodCall* method_call,
+                                  gpointer user_data) {
+    static_cast<Impl*>(user_data)->HandleLifecycleMethodCall(method_call);
   }
 
   void StartShortcutMonitoring() {
@@ -502,6 +520,24 @@ class LinuxIntegration::Impl {
       UngrabEscape();
     }
 #endif
+  }
+
+  void HandleLifecycleMethodCall(FlMethodCall* method_call) {
+    g_autoptr(FlMethodResponse) response = nullptr;
+    const gchar* method = fl_method_call_get_name(method_call);
+    if (strcmp(method, "hideWindow") == 0) {
+      // Close-to-tray: the Dart side vetoes the app-exit request that the
+      // Flutter embedder raises when the window's close button is pressed,
+      // then asks us to hide the window so the process keeps running in the
+      // background (global F8 shortcuts stay active).
+      if (window_ != nullptr) {
+        gtk_widget_hide(GTK_WIDGET(window_));
+      }
+      response = FL_METHOD_RESPONSE(fl_method_success_response_new(nullptr));
+    } else {
+      response = FL_METHOD_RESPONSE(fl_method_not_implemented_response_new());
+    }
+    Respond(method_call, response);
   }
 
   void HandlePermissionMethodCall(FlMethodCall* method_call) {
@@ -1219,6 +1255,7 @@ class LinuxIntegration::Impl {
   FlEventChannel* shortcut_channel_ = nullptr;
   FlMethodChannel* text_channel_ = nullptr;
   FlMethodChannel* permission_channel_ = nullptr;
+  FlMethodChannel* lifecycle_channel_ = nullptr;
 };
 
 LinuxIntegration::LinuxIntegration(FlBinaryMessenger* messenger, GtkWindow* window)

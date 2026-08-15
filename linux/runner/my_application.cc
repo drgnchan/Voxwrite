@@ -1,6 +1,7 @@
 #include "my_application.h"
 
 #include <flutter_linux/flutter_linux.h>
+#include <libayatana-appindicator/app-indicator.h>
 #ifdef GDK_WINDOWING_X11
 #include <gdk/gdkx.h>
 #endif
@@ -12,6 +13,10 @@ struct _MyApplication {
   GtkApplication parent_instance;
   char** dart_entrypoint_arguments;
   LinuxIntegration* linux_integration;
+  AppIndicator* indicator;
+  GtkMenu* tray_menu;
+  GtkWindow* main_window;
+  gboolean tray_ready;
 };
 
 G_DEFINE_TYPE(MyApplication, my_application, GTK_TYPE_APPLICATION)
@@ -19,6 +24,90 @@ G_DEFINE_TYPE(MyApplication, my_application, GTK_TYPE_APPLICATION)
 // Called when first Flutter frame received.
 static void first_frame_cb(MyApplication* self, FlView* view) {
   gtk_widget_show(gtk_widget_get_toplevel(GTK_WIDGET(view)));
+}
+
+// The window's close button hides VoxWrite to the system tray instead of
+// quitting, so the global F8 shortcuts keep working while the app runs in the
+// background. Quit explicitly from the tray menu, mirroring the macOS
+// menu-bar behaviour. Note: the Flutter embedder intercepts delete-event and
+// routes the close through System.requestAppExit to the Dart side, which
+// vetoes the exit and asks the LinuxIntegration 'hideWindow' bridge to hide
+// the window.
+static void tray_open_cb(GtkMenu*, gpointer user_data) {
+  MyApplication* self = MY_APPLICATION(user_data);
+  if (self->main_window == nullptr) return;
+  gtk_widget_show(GTK_WIDGET(self->main_window));
+  gtk_window_present(self->main_window);
+}
+
+static void tray_quit_cb(GtkMenu*, gpointer user_data) {
+  MyApplication* self = MY_APPLICATION(user_data);
+  if (self->main_window != nullptr) {
+    gtk_widget_destroy(GTK_WIDGET(self->main_window));
+    self->main_window = nullptr;
+  }
+  g_application_quit(G_APPLICATION(self));
+}
+
+// Resolves the bundle's data directory from the running executable, e.g.
+// "<bundle>/voxwrite" -> "<bundle>/data".
+static gchar* bundle_data_dir() {
+  g_autofree gchar* exe_path = g_file_read_link("/proc/self/exe", nullptr);
+  if (exe_path == nullptr) return nullptr;
+  g_autofree gchar* exe_dir = g_path_get_dirname(exe_path);
+  return g_build_filename(exe_dir, "data", nullptr);
+}
+
+static void setup_tray(MyApplication* self) {
+  if (self->tray_ready) return;
+  self->tray_ready = TRUE;
+
+  // The library's convenience constructors are deprecated but remain the
+  // supported way to create an indicator; silence the deprecation warning.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+  self->indicator = app_indicator_new(
+      "dev.raymond.voxwrite", "voxwrite-tray",
+      APP_INDICATOR_CATEGORY_APPLICATION_STATUS);
+#pragma GCC diagnostic pop
+
+  // Prefer the bundled app icon; fall back to a themed microphone icon on
+  // desktops that cannot resolve the custom icon-theme path. The theme path
+  // must end in "icons" and hold a hicolor theme: KDE's StatusNotifierItem
+  // host only wires up its custom icon loader when the path ends in "icons".
+  gboolean used_bundled_icon = FALSE;
+  g_autofree gchar* data_dir = bundle_data_dir();
+  if (data_dir != nullptr) {
+    g_autofree gchar* icons_dir = g_build_filename(data_dir, "icons", nullptr);
+    g_autofree gchar* index_theme =
+        g_build_filename(icons_dir, "hicolor", "index.theme", nullptr);
+    if (g_file_test(index_theme, G_FILE_TEST_EXISTS)) {
+      app_indicator_set_icon_theme_path(self->indicator, icons_dir);
+      app_indicator_set_icon_full(self->indicator, "voxwrite-tray",
+                                  "VoxWrite");
+      used_bundled_icon = TRUE;
+    }
+  }
+  if (!used_bundled_icon) {
+    app_indicator_set_icon_full(self->indicator, "audio-input-microphone",
+                                "VoxWrite");
+  }
+
+  self->tray_menu = GTK_MENU(gtk_menu_new());
+  GtkWidget* open_item = gtk_menu_item_new_with_label("打开 VoxWrite");
+  g_signal_connect(open_item, "activate", G_CALLBACK(tray_open_cb), self);
+  gtk_menu_shell_append(GTK_MENU_SHELL(self->tray_menu), open_item);
+
+  GtkWidget* separator = gtk_separator_menu_item_new();
+  gtk_menu_shell_append(GTK_MENU_SHELL(self->tray_menu), separator);
+
+  GtkWidget* quit_item = gtk_menu_item_new_with_label("退出 VoxWrite");
+  g_signal_connect(quit_item, "activate", G_CALLBACK(tray_quit_cb), self);
+  gtk_menu_shell_append(GTK_MENU_SHELL(self->tray_menu), quit_item);
+
+  gtk_widget_show_all(GTK_WIDGET(self->tray_menu));
+  app_indicator_set_menu(self->indicator, self->tray_menu);
+  app_indicator_set_status(self->indicator, APP_INDICATOR_STATUS_ACTIVE);
 }
 
 // Implements GApplication::activate.
@@ -81,6 +170,12 @@ static void my_application_activate(GApplication* application) {
       fl_engine_get_binary_messenger(engine), window);
 
   gtk_widget_grab_focus(GTK_WIDGET(view));
+
+  // Close-to-tray: keep the process alive in the background so the global F8
+  // shortcuts keep working; quit through the tray menu instead. The window is
+  // hidden by the Dart close-to-tray handler (see main.dart).
+  self->main_window = window;
+  setup_tray(self);
 }
 
 // Implements GApplication::local_command_line.
@@ -140,7 +235,9 @@ static void my_application_class_init(MyApplicationClass* klass) {
   G_OBJECT_CLASS(klass)->dispose = my_application_dispose;
 }
 
-static void my_application_init(MyApplication* self) {}
+static void my_application_init(MyApplication* self) {
+  self->tray_ready = FALSE;
+}
 
 MyApplication* my_application_new() {
   // Set the program name to the application ID, which helps various systems
