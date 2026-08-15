@@ -112,6 +112,32 @@ class VoxWriteInputMethodService : InputMethodService() {
         super.onStartInput(attribute, restarting)
         selectedMode = MODE_DICTATION
         updateModeButtons()
+        showSelfIfWindowHidden()
+    }
+
+    /**
+     * After the user switches to VoxWrite through the system input-method picker,
+     * the framework calls [onStartInput] on us but some host apps never re-request
+     * the soft input, so our window is never shown ([onStartInputView] — where
+     * recording auto-starts — only fires once the window is shown). Without this,
+     * the user has to tap the focused field again before VoxWrite appears.
+     *
+     * Ask the system to show VoxWrite if, shortly after input starts, the window
+     * still has not been shown and no voice session has begun.
+     */
+    private fun showSelfIfWindowHidden() {
+        val generation = viewGeneration
+        mainHandler.postDelayed({
+            if (
+                generation == viewGeneration &&
+                !isInputViewShown &&
+                !starting &&
+                !recording &&
+                !processing
+            ) {
+                requestShowSelf(0)
+            }
+        }, SHOW_SELF_DELAY_MS)
     }
 
     override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
@@ -619,6 +645,7 @@ class VoxWriteInputMethodService : InputMethodService() {
         const val MODE_DICTATION = "dictation"
         const val MODE_TRANSLATION = "translation"
         const val AUTO_START_DELAY_MS = 180L
+        const val SHOW_SELF_DELAY_MS = 150L
         const val RETURN_DELAY_MS = 180L
     }
 }
