@@ -1,85 +1,127 @@
 # VoxWrite
 
-VoxWrite is a personal, cross-platform voice writing assistant for macOS, Windows, Linux, and Android. It independently reproduces the workflow of speaking into any application, while using original branding and UI.
+> [English](./README.en.md)
 
-## Target workflow
+开口说话，文字自动成形。
 
-- **macOS Fn / Windows and Linux F8** — Dictation: clean spoken thoughts into usable text
-- **macOS Fn + Left Shift / Windows and Linux Shift + F8** — Translation
-- **macOS Fn + Space / Windows and Linux Ctrl + F8** — Ask, summarize, or rewrite selected text
-- Android auxiliary voice input compatible with user-selected primary keyboards
-- Local history and personal dictionary
-- Alibaba Cloud Model Studio first, with DeepSeek, Doubao, and custom providers behind adapters
+VoxWrite 是一款跨平台的语音写作助手，支持 macOS、Windows、Linux 和 Android。对着麦克风说出你的想法，VoxWrite 会把它识别、整理成通顺的文字，并直接写回你正在使用的应用里——聊天、邮件、笔记、文档都行。
 
-See [`CONTEXT.md`](./CONTEXT.md) for domain terminology and [`research/typeless/FEATURE_MAP.md`](./research/typeless/FEATURE_MAP.md) for the observed behavior map.
+## 三种模式
 
-## Platforms
-
-| Platform | System-wide input plan |
+| 模式 | 作用 |
 | --- | --- |
-| macOS | Swift event tap + captured-target clipboard insertion |
-| Windows | Native low-level F8 shortcut + captured-window clipboard insertion |
-| Linux | X11 F8 grabs + captured-window clipboard insertion; Wayland UI/clipboard fallback |
-| Android | Kotlin auxiliary `voice` input method backed by a headless Flutter engine; the user's preferred keyboard owns manual typing |
+| **口述** | 保留原意，自动去掉重复、补全标点与结构，把口语整理成可用的文字 |
+| **翻译** | 先理顺表达，再生成自然的目标语言文本（目标语言可在设置中选择） |
+| **问与改写** | 对选中的内容提问、润色、压缩或重写 |
 
-There is intentionally no iOS target.
+## 支持的平台与唤起方式
 
-## Current status
+| 平台 | 全局快捷键 | 结果去向 |
+| --- | --- | --- |
+| macOS | `Fn` 口述 · `Fn + Shift` 翻译 · `Fn + Space` 问与改写 | 自动粘贴到当前输入位置 |
+| Windows | `F8` 口述 · `Shift + F8` 翻译 · `Ctrl + F8` 问与改写 | 自动粘贴到当前输入位置 |
+| Linux | `F8` 口述 · `Shift + F8` 翻译 · `Ctrl + F8` 问与改写 | X11 自动回填；Wayland 默认复制到剪贴板，可开启自动回填 |
+| Android | 作为辅助「语音输入法」使用，从任意输入法一键切换 | 文字提交回当前输入框，自动返回原键盘 |
 
-Implemented:
+Android 目前支持口述和翻译两种模式；没有 iOS 版本。
 
-- Flutter project for macOS, Windows, Linux, and Android
-- Original responsive desktop/mobile UI
-- Dictation, Translation, and Ask session state machine
-- Prompt construction for cleanup, translation, and selected-text editing
-- WAV 16 kHz mono microphone recording with temporary-file cleanup
-- Alibaba `qwen-audio-3.0-asr-flash` native Base64 audio recognition with personal-dictionary hotwords and `qwen3-asr-flash` compatibility fallback
-- OpenAI-compatible writing provider for Qwen/DeepSeek/Doubao-compatible endpoints
-- End-to-end ASR → writing transform → result workflow
-- API key storage through the platform secure store
-- macOS native Fn/Fn+Shift/Fn+Space event bridge, enabled by default, with Esc cancellation and suppression of Fn+F-key/media-key false triggers
-- Non-activating floating status panel that follows the active macOS Space
-- Captured-target text insertion for VS Code, WeChat, TickTick, and similar apps
-- Voice activity detection: trailing-silence stop, no-speech rejection, and 2-minute limit
-- Persistent local history (text only), personal dictionary, provider settings, translation target, and Domain Background
-- Domain Background injection for specialized speech recognition and writing cleanup, with personal-dictionary hotwords for exact spellings
-- Source-language-preserving Dictation prompts and configurable Translation output
-- macOS menu-bar lifecycle, window reopen, and optional launch at login
-- Windows native F8/Shift+F8/Ctrl+F8 bridge and captured-window paste path
-- Linux X11 F8/Shift+F8/Ctrl+F8 bridge, PRIMARY selection reads, captured-window paste path, and Wayland clipboard fallback
-- Android auxiliary voice input method with Dictation and Translation controls
-- Standard Android `voice` subtype integration with automatic recording start, result commit, cancellation, and return to the previously active keyboard
-- Android real-time waveform, duration, processing state, configured Provider reuse, and voice-session history persistence
-- Signed, shrunk Android Release APKs with adaptive VoxWrite launcher icons, OEM-safe navigation insets, flat tonal editing keys, and guarded swipe-up clearing, verified on Xiaomi and OPPO devices
-- Stale-session protection so cancelled cloud requests cannot insert text
-- Domain, prompt, VAD, history, ASR parser, and widget tests
+## 快速开始
 
-See [`docs/alibaba-cloud-setup.md`](./docs/alibaba-cloud-setup.md) for Provider configuration, [`docs/platform-integration.md`](./docs/platform-integration.md) for platform setup, and [`docs/android-release.md`](./docs/android-release.md) for signed Android builds.
+### 1. 准备 API Key
 
-Next milestone:
+VoxWrite 的识别与整理都在云端完成，需要你自己的云服务账号：
 
-1. Build and run the Windows native bridge on a Windows machine
-2. Build and dogfood the Linux native bridge on X11 distributions; evaluate a Wayland portal integration
-3. Tune Android VAD thresholds against more rooms, voices, and microphones
-4. Add an explicit Android update/rollback workflow around the signed Release APK
-5. Dogfood longer-form Android dictation in daily messaging and note-taking
+- **语音识别**：固定使用阿里云百炼（Model Studio）的 Qwen-Audio。需要开通阿里云百炼并创建 API Key。
+- **文字整理**：支持 OpenAI 兼容接口，可在阿里云百炼、豆包、DeepSeek 或自定义兼容接口之间选择，同样需要对应的 API Key。
 
-## Run
+> 费用由各云服务按用量收取，与 VoxWrite 无关。
+
+### 2. 安装
+
+将对应平台的安装包安装到你的设备上，首次启动后按提示完成系统权限设置（详见下文各平台说明）。
+
+### 3. 配置
+
+打开 VoxWrite 的**设置**页：
+
+1. **语音识别**：填写阿里云百炼 Base URL 和语音识别模型（默认 `qwen-audio-3.0-asr-flash`），并安全保存 API Key。
+2. **文本模型**：选择服务商（阿里云百炼 / 豆包 / DeepSeek / 自定义），填写 Base URL 与模型名，并安全保存 API Key。
+3. 按需填写**领域背景**、选择**翻译目标语言**，然后就可以开始使用了。
+
+API Key 保存在系统安全存储中，不会明文写进本地文件。
+
+## 使用说明
+
+### 桌面端（macOS / Windows / Linux）
+
+- 按对应快捷键开始录音，说完后再次按下快捷键（或点击「停止」）结束；也可在「说完后自动停止」开启时说完即停（连续静音约 1.4 秒自动处理，最长录音 2 分钟）。
+- 录音时松开快捷键前，可按住 `Shift` 或 `Space`（macOS 为 `Fn + Shift` / `Fn + Space`）切换模式。
+- **macOS**：首次使用需在「系统设置 → 隐私与安全性」中授予**辅助功能**和**输入监控**权限，设置页提供一键跳转按钮。关闭主窗口后可从菜单栏重新打开，可选登录后自动启动。
+- **Windows**：系统级 F8 快捷键，无需额外权限。
+- **Linux**：X11 下全局 F8 自动回填；Wayland 下需在设置中开启「Wayland 自动回填」（依赖 `ydotool` 与 `wl-clipboard` 并启用 ydotool 服务），否则结果会复制到剪贴板，由你手动粘贴。关闭主窗口后程序驻留系统托盘，快捷键继续可用。
+
+### Android
+
+VoxWrite 是一个独立的辅助语音输入法，与你的主输入法（如搜狗、百度、Gboard、Fcitx5 等）配合使用：
+
+1. 在设置中点击「启用 VoxWrite Voice」，并在系统输入法列表里勾选。
+2. 打字时从输入法切换菜单（或长按空格键）选择 **VoxWrite Voice**。
+3. 自动开始录音；说完后自动停止并提交文字，随后自动返回你之前使用的键盘。
+
+在系统「选择主输入法」中选定的键盘会作为手动输入的默认键盘。
+
+## 设置一览
+
+| 设置 | 说明 |
+| --- | --- |
+| 语音识别 / 文本模型 | 云服务账号、端点与模型配置 |
+| 领域背景 | 填写你的专业领域或技术栈，帮助识别和整理专业术语（仅作背景，不会执行指令） |
+| 个人词典 | 自定义词条会作为即时热词提交给模型，保证人名、产品名等精确拼写 |
+| 翻译目标语言 | 英语、简体中文、繁体中文、日语、韩语、西班牙语、法语、德语 |
+| 说完后自动停止 | 检测到静音后自动结束录音并处理 |
+| 全局快捷键 | 桌面端可开关全局快捷键监听 |
+| 登录后自动启动 | 桌面端可选（macOS 支持） |
+
+## 隐私说明
+
+- 音频默认不写入历史；本地历史仅保存整理后的文字。
+- 录音与文字整理需要联网并发送至你配置的云服务。
+- API Key 保存在系统安全存储中。
+- 领域背景等设置仅保存在本地，随请求发送给你的云服务用于上下文。
+
+## 常见问题
+
+**识别不准？** 在「个人词典」中添加人名、产品名等专有词；在「领域背景」中补充你的专业领域。
+
+**整理出来的文字不像我说的？** 口述模式会保留源语言和原意，只去除口语重复、补全标点与结构；如仍不理想，可在设置中更换文本模型。
+
+**Wayland 下结果没有自动粘贴？** 在设置中开启「Wayland 自动回填」并确保 `ydotool` 服务已运行；否则结果会进入剪贴板，手动粘贴即可。
+
+**需要付费吗？** VoxWrite 本身免费，但识别和整理消耗你阿里云百炼 / 豆包 / DeepSeek 等账号的云服务额度。
+
+## 从源码构建（开发者）
+
+以下内容面向需要自行编译或参与开发的开发者，普通用户无需关心。
+
+**前置要求**：Flutter SDK（`pubspec.yaml` 要求 Dart SDK `^3.10.1`）。
 
 ```bash
 flutter pub get
-flutter run -d macos
-# On Linux: flutter run -d linux
+flutter run -d macos   # macOS
+flutter run -d linux   # Linux（需 GTK3）
+flutter run -d windows # Windows
+flutter run -d android # Android 真机或模拟器
 ```
 
-## Verify
+检查与测试：
 
 ```bash
 flutter analyze
 flutter test
-flutter build macos --debug
-flutter build linux --debug  # run on Linux
-flutter build apk --debug
 ```
 
-Runtime screenshots are stored in [`artifacts/screenshots/`](./artifacts/screenshots/).
+平台注意：
+
+- **macOS**：运行时的全局 Fn 监听依赖用户在系统设置中授予辅助功能与输入监控权限（应用内设置页提供跳转入口）。
+- **Linux**：依赖 GTK3；X11 全局 F8 原生可用，Wayland 通过 xdg-desktop-portal 全局快捷键，可选 ydotool 自动回填。
+- **Android**：Release 构建通过根目录 `key.properties`（`keyAlias` / `keyPassword` / `storeFile` / `storePassword`）签名，并启用代码压缩与资源收缩；`flutter build apk --release` 产出签名 APK。
