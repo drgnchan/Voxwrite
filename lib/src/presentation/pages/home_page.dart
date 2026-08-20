@@ -191,7 +191,7 @@ class _SessionPanel extends ConsumerWidget {
       VoiceSessionPhase.recording => (
         Icons.mic_rounded,
         '正在记录 · ${session.mode.title}',
-        '说完后再次按下快捷键，或点击停止。',
+        '说完后再次按下快捷键或点击停止；点击取消会丢弃本次录音。',
       ),
       VoiceSessionPhase.processing => (
         Icons.auto_awesome,
@@ -233,10 +233,22 @@ class _SessionPanel extends ConsumerWidget {
               ),
             ),
             if (session.phase == VoiceSessionPhase.recording)
-              FilledButton.icon(
-                onPressed: () async => controller.stopAndProcess(),
-                icon: const Icon(Icons.stop_rounded),
-                label: const Text('停止'),
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  FilledButton.icon(
+                    onPressed: () async => controller.stopAndProcess(),
+                    icon: const Icon(Icons.stop_rounded),
+                    label: const Text('停止'),
+                  ),
+                  const SizedBox(height: 8),
+                  OutlinedButton.icon(
+                    onPressed: () async => controller.reset(),
+                    icon: const Icon(Icons.close_rounded),
+                    label: const Text('取消'),
+                  ),
+                ],
               )
             else if (session.phase != VoiceSessionPhase.idle)
               TextButton(

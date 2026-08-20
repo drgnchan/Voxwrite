@@ -55,6 +55,7 @@ API keys are stored in the system secure store — never written to disk in plai
 ### Desktop (macOS / Windows / Linux)
 
 - Press the shortcut to start recording; press it again (or tap **Stop**) to finish. With **Auto-stop on silence** enabled, it stops on its own (about 1.4 s of silence; recording is capped at 2 minutes).
+- Tap **Cancel** in the recording panel to discard the recording, or press `Esc` while the VoxWrite window is focused. Linux also provides global `Ctrl + Shift + F8` (and global `Esc` on X11), so cancellation remains available when Wayland auto-backfill keeps the window hidden.
 - While holding the shortcut before recording starts, hold `Shift` or `Space` to switch modes (macOS: `Fn + Shift` / `Fn + Space`).
 - **macOS**: grant **Accessibility** and **Input Monitoring** permissions under System Settings → Privacy & Security on first use (one-tap buttons are provided in Settings). Closing the window keeps it available from the menu bar; optional launch at login.
 - **Windows**: system-wide F8 shortcuts, no extra permissions needed.

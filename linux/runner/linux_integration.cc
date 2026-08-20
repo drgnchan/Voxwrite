@@ -183,7 +183,8 @@ class LinuxIntegration::Impl {
     auto* previous_handler = XSetErrorHandler(CaptureX11Error);
     const std::vector<unsigned int> lock_combinations =
         LockModifierCombinations();
-    const unsigned int mode_modifiers[] = {0, ShiftMask, ControlMask};
+    const unsigned int mode_modifiers[] = {
+        0, ShiftMask, ControlMask, ShiftMask | ControlMask};
     for (const unsigned int mode_modifier : mode_modifiers) {
       for (const unsigned int locks : lock_combinations) {
         XGrabKey(display_, f8_keycode_, mode_modifier | locks, root_, False,
@@ -337,6 +338,12 @@ class LinuxIntegration::Impl {
     AddShortcut(&shortcuts, "translation", "开始翻译（Translation）",
                 "SHIFT+F8");
     AddShortcut(&shortcuts, "ask", "开始提问（Ask）", "CTRL+F8");
+    // A plain global Escape binding would steal a fundamental desktop key
+    // even while VoxWrite is idle. Use a dedicated chord that remains
+    // available when Wayland auto-backfill deliberately keeps our window
+    // hidden and focused keyboard events cannot reach Flutter.
+    AddShortcut(&shortcuts, "cancel", "取消当前录音（Cancel）",
+                "CTRL+SHIFT+F8");
 
     GVariantBuilder options;
     g_variant_builder_init(&options, G_VARIANT_TYPE("a{sv}"));
@@ -432,6 +439,13 @@ class LinuxIntegration::Impl {
     if (g_strcmp0(session_handle, portal_session_handle_) != 0) {
       return;  // Activation belongs to another application's session.
     }
+    if (g_strcmp0(shortcut_id, "cancel") == 0) {
+      if (session_active_) {
+        Emit("cancel");
+        if (auto_backfill_) NotifyBackfill("VoxWrite", "本次录音已取消");
+      }
+      return;
+    }
     Emit("fnDown");
     if (g_strcmp0(shortcut_id, "translation") == 0) {
       Emit("selectTranslation");
@@ -442,7 +456,8 @@ class LinuxIntegration::Impl {
     if (auto_backfill_) {
       // Silent mode keeps the target app focused; notify so the user knows
       // the voice session actually started.
-      NotifyBackfill("VoxWrite", "正在录音…（再按 F8 停止并处理）");
+      NotifyBackfill(
+          "VoxWrite", "正在录音…（F8 停止，Ctrl+Shift+F8 取消）");
     }
   }
 
@@ -459,6 +474,7 @@ class LinuxIntegration::Impl {
     if (g_strcmp0(session_handle, portal_session_handle_) != 0) {
       return;  // Deactivation belongs to another application's session.
     }
+    if (g_strcmp0(shortcut_id, "cancel") == 0) return;
     Emit("fnUp");
   }
 
@@ -1078,6 +1094,14 @@ class LinuxIntegration::Impl {
 
     const XKeyEvent& key = event->xkey;
     if (key.keycode == self->f8_keycode_) {
+      const bool is_cancel = (key.state & ShiftMask) != 0 &&
+                             (key.state & ControlMask) != 0;
+      if (is_cancel) {
+        if (event->type == KeyPress && self->session_active_) {
+          self->Emit("cancel");
+        }
+        return GDK_FILTER_REMOVE;
+      }
       if (event->type == KeyPress && !self->f8_down_) {
         self->f8_down_ = true;
         self->Emit("fnDown");

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../application/runtime_settings.dart';
@@ -153,6 +154,15 @@ class _ShortcutCoordinatorState extends ConsumerState<ShortcutCoordinator> {
     });
   }
 
+  void _cancelActiveSession() {
+    final phase = ref.read(voiceSessionProvider).phase;
+    if (phase == VoiceSessionPhase.shortcutPreview ||
+        phase == VoiceSessionPhase.recording ||
+        phase == VoiceSessionPhase.processing) {
+      unawaited(ref.read(voiceSessionProvider.notifier).reset());
+    }
+  }
+
   void _handleEvent(GlobalShortcutEvent event) {
     final controller = ref.read(voiceSessionProvider.notifier);
     switch (event.type) {
@@ -196,6 +206,11 @@ class _ShortcutCoordinatorState extends ConsumerState<ShortcutCoordinator> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) unawaited(_setSubscribed(enabled));
     });
-    return widget.child;
+    return CallbackShortcuts(
+      bindings: <ShortcutActivator, VoidCallback>{
+        const SingleActivator(LogicalKeyboardKey.escape): _cancelActiveSession,
+      },
+      child: Focus(autofocus: true, child: widget.child),
+    );
   }
 }
