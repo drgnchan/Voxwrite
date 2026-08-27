@@ -452,6 +452,12 @@ class LinuxIntegration::Impl {
     } else if (g_strcmp0(shortcut_id, "ask") == 0) {
       Emit("selectAsk");
     }
+    // Treat a portal activation as a complete shortcut press. Hyprland's
+    // `global` dispatcher emits Activated but no matching Deactivated signal,
+    // which otherwise leaves Dart in shortcutPreview and never starts the
+    // recorder. Backends that also emit Deactivated are safe: the duplicate
+    // fnUp is ignored once the session has left shortcutPreview.
+    Emit("fnUp");
     PresentMainWindow();
     if (auto_backfill_) {
       // Silent mode keeps the target app focused; notify so the user knows
