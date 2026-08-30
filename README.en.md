@@ -1,5 +1,8 @@
 # VoxWrite
 
+[![CI](https://github.com/drgnchan/Voxwrite/actions/workflows/ci.yml/badge.svg)](https://github.com/drgnchan/Voxwrite/actions/workflows/ci.yml)
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+
 Say it out loud, and the words write themselves.
 
 VoxWrite is a cross-platform voice writing assistant for macOS, Windows, Linux, and Android. Speak into the microphone and VoxWrite transcribes, cleans up, and inserts natural text right into the app you're using — chat, email, notes, or documents.
@@ -100,11 +103,17 @@ The keyboard you pick in "Choose primary input method" remains your default for 
 
 **Does it cost money?** VoxWrite itself is free; recognition and processing consume quota from your Alibaba Cloud / Doubao / DeepSeek account.
 
+## Open source and contributing
+
+VoxWrite is open source under the [Apache License 2.0](LICENSE). Bug reports, feature proposals, and pull requests are welcome. Before contributing, read the [contribution guide](CONTRIBUTING.md) and [Code of Conduct](CODE_OF_CONDUCT.md). Report vulnerabilities privately according to the [security policy](SECURITY.md), not through public issues.
+
+See [CHANGELOG.md](CHANGELOG.md) for notable changes.
+
 ## Building from source (developers)
 
 The rest of this README targets end users. If you want to build VoxWrite yourself or contribute, here's what you need.
 
-**Prerequisites**: Flutter SDK (`pubspec.yaml` requires Dart SDK `^3.10.1`).
+**Prerequisites**: a stable Flutter SDK satisfying the constraints in `pubspec.yaml` and `pubspec.lock`.
 
 ```bash
 flutter pub get
@@ -125,4 +134,4 @@ Platform notes:
 
 - **macOS**: the global Fn listener requires Accessibility and Input Monitoring permissions granted by the user in System Settings (one-tap links are provided in the in-app Settings page).
 - **Linux**: depends on GTK3; native global F8 on X11, Wayland goes through xdg-desktop-portal global shortcuts with optional ydotool auto-insert.
-- **Android**: Release builds are signed via a root-level `key.properties` (`keyAlias` / `keyPassword` / `storeFile` / `storePassword`) and have code shrinking and resource shrinking enabled; `flutter build apk --release` produces a signed APK.
+- **Android**: Debug builds require no signing configuration. To produce a signed release, configure `keyAlias`, `keyPassword`, `storeFile`, and `storePassword` in `android/key.properties`; that file and keystores are ignored by Git. Release builds enable code and resource shrinking.

@@ -1,5 +1,8 @@
 # VoxWrite
 
+[![CI](https://github.com/drgnchan/Voxwrite/actions/workflows/ci.yml/badge.svg)](https://github.com/drgnchan/Voxwrite/actions/workflows/ci.yml)
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+
 > [English](./README.en.md)
 
 开口说话，文字自动成形。
@@ -100,11 +103,17 @@ VoxWrite 是一个独立的辅助语音输入法，与你的主输入法（如�
 
 **需要付费吗？** VoxWrite 本身免费，但识别和整理消耗你阿里云百炼 / 豆包 / DeepSeek 等账号的云服务额度。
 
+## 开源与贡献
+
+VoxWrite 采用 [Apache License 2.0](LICENSE) 开源。欢迎提交 Bug 报告、功能建议和 Pull Request；参与前请阅读[贡献指南](CONTRIBUTING.md)与[行为准则](CODE_OF_CONDUCT.md)。安全漏洞请按照[安全政策](SECURITY.md)私下报告，不要创建公开 Issue。
+
+版本变化记录见 [CHANGELOG.md](CHANGELOG.md)。
+
 ## 从源码构建（开发者）
 
 以下内容面向需要自行编译或参与开发的开发者，普通用户无需关心。
 
-**前置要求**：Flutter SDK（`pubspec.yaml` 要求 Dart SDK `^3.10.1`）。
+**前置要求**：安装满足 `pubspec.yaml` 与 `pubspec.lock` 中 SDK 约束的 Flutter stable。
 
 ```bash
 flutter pub get
@@ -125,4 +134,4 @@ flutter test
 
 - **macOS**：运行时的全局 Fn 监听依赖用户在系统设置中授予辅助功能与输入监控权限（应用内设置页提供跳转入口）。
 - **Linux**：依赖 GTK3；X11 全局 F8 原生可用，Wayland 通过 xdg-desktop-portal 全局快捷键，可选 ydotool 自动回填。
-- **Android**：Release 构建通过根目录 `key.properties`（`keyAlias` / `keyPassword` / `storeFile` / `storePassword`）签名，并启用代码压缩与资源收缩；`flutter build apk --release` 产出签名 APK。
+- **Android**：Debug 构建不需要签名配置。若要生成已签名的 Release 包，请在 `android/key.properties` 中配置 `keyAlias` / `keyPassword` / `storeFile` / `storePassword`；该文件和密钥库已被 Git 忽略。Release 构建会启用代码压缩与资源收缩。
