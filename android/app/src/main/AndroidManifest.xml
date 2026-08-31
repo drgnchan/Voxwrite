@@ -29,6 +29,24 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <activity
+            android:name=".ProcessTextActivity"
+            android:label="朗读"
+            android:theme="@style/ProcessTextTheme"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true">
+            <meta-data
+                android:name="io.flutter.embedding.android.NormalTheme"
+                android:resource="@style/ProcessTextTheme" />
+            <intent-filter>
+                <action android:name="android.intent.action.PROCESS_TEXT" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity>
         <service
             android:name=".VoxWriteInputMethodService"
             android:exported="true"

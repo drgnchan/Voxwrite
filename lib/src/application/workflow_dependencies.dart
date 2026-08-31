@@ -77,7 +77,7 @@ class CloudApiKeyStore {
   }
 }
 
-/// Alibaba Cloud API key used by the Qwen-Audio speech recognizer.
+/// Alibaba Cloud API key used by Qwen-Audio ASR and Qwen3-TTS.
 final cloudApiKeyStoreProvider = Provider<CloudApiKeyStore>(
   (ref) => CloudApiKeyStore(
     ref.read(secureStorageProvider),

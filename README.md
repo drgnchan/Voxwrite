@@ -118,7 +118,7 @@ VoxWrite 采用 [Apache License 2.0](LICENSE) 开源。欢迎提交 Bug 报告�
 ```bash
 flutter pub get
 flutter run -d macos   # macOS
-flutter run -d linux   # Linux（需 GTK3）
+flutter run -d linux   # Linux（需 GTK3 与 GStreamer 开发库）
 flutter run -d windows # Windows
 flutter run -d android # Android 真机或模拟器
 ```
@@ -133,5 +133,5 @@ flutter test
 平台注意：
 
 - **macOS**：运行时的全局 Fn 监听依赖用户在系统设置中授予辅助功能与输入监控权限（应用内设置页提供跳转入口）。
-- **Linux**：依赖 GTK3；X11 全局 F8 原生可用，Wayland 通过 xdg-desktop-portal 全局快捷键，可选 ydotool 自动回填。
+- **Linux**：依赖 GTK3，以及朗读功能所需的 GStreamer 1.0 开发库（Debian/Ubuntu：`libgstreamer1.0-dev`、`libgstreamer-plugins-base1.0-dev`）；X11 全局 F8 原生可用，Wayland 通过 xdg-desktop-portal 全局快捷键，可选 ydotool 自动回填。
 - **Android**：Debug 构建不需要签名配置。若要生成已签名的 Release 包，请在 `android/key.properties` 中配置 `keyAlias` / `keyPassword` / `storeFile` / `storePassword`；该文件和密钥库已被 Git 忽略。Release 构建会启用代码压缩与资源收缩。

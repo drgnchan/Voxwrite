@@ -118,7 +118,7 @@ The rest of this README targets end users. If you want to build VoxWrite yoursel
 ```bash
 flutter pub get
 flutter run -d macos   # macOS
-flutter run -d linux   # Linux (requires GTK3)
+flutter run -d linux   # Linux (requires GTK3 and GStreamer development libraries)
 flutter run -d windows # Windows
 flutter run -d android # Android device or emulator
 ```
@@ -133,5 +133,5 @@ flutter test
 Platform notes:
 
 - **macOS**: the global Fn listener requires Accessibility and Input Monitoring permissions granted by the user in System Settings (one-tap links are provided in the in-app Settings page).
-- **Linux**: depends on GTK3; native global F8 on X11, Wayland goes through xdg-desktop-portal global shortcuts with optional ydotool auto-insert.
+- **Linux**: depends on GTK3 and the GStreamer 1.0 development libraries used for playback (`libgstreamer1.0-dev` and `libgstreamer-plugins-base1.0-dev` on Debian/Ubuntu); native global F8 on X11, Wayland goes through xdg-desktop-portal global shortcuts with optional ydotool auto-insert.
 - **Android**: Debug builds require no signing configuration. To produce a signed release, configure `keyAlias`, `keyPassword`, `storeFile`, and `storePassword` in `android/key.properties`; that file and keystores are ignored by Git. Release builds enable code and resource shrinking.

@@ -163,7 +163,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               const SizedBox(height: 24),
               _SectionCard(
                 title: '语音识别',
-                subtitle: '语音识别固定使用阿里云百炼 Qwen-Audio；个人词典会作为即时热词提交给支持该能力的模型。',
+                subtitle:
+                    '语音识别固定使用阿里云百炼 Qwen-Audio；同一 API Key 也用于历史记录的 qwen3-tts-instruct-flash 正式男声朗读。个人词典会作为即时热词提交给支持该能力的模型。',
                 child: Column(
                   children: [
                     TextFormField(

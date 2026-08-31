@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app.dart';
 import 'src/application/android_voice_input_controller.dart';
+import 'src/presentation/android_process_text_speech.dart';
 
 /// Keeps the Linux process alive when the window's close button is pressed:
 /// closing the window hides it to the system tray instead of quitting, so the
@@ -40,4 +41,10 @@ void _installLinuxCloseToTray() {
 void voiceInputMain() {
   WidgetsFlutterBinding.ensureInitialized();
   AndroidVoiceInputController().initialize();
+}
+
+@pragma('vm:entry-point')
+void processTextMain() {
+  WidgetsFlutterBinding.ensureInitialized();
+  runApp(const ProviderScope(child: AndroidProcessTextSpeechApp()));
 }

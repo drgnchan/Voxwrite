@@ -4,12 +4,13 @@ homepage: https://github.com/drgnchan/Voxwrite
 repository: https://github.com/drgnchan/Voxwrite
 issue_tracker: https://github.com/drgnchan/Voxwrite/issues
 publish_to: 'none'
-version: 0.3.32+41
+version: 0.3.36+2026083104
 
 environment:
   sdk: ^3.10.1
 
 dependencies:
+  audioplayers: ^6.8.1
   dio: ^5.11.0
   flutter:
     sdk: flutter
