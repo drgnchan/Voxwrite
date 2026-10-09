@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'src/application/workflow_dependencies.dart';
 import 'src/presentation/app_shell.dart';
+import 'src/presentation/app_theme.dart';
 import 'src/presentation/shortcut_coordinator.dart';
 import 'src/presentation/voice_overlay_coordinator.dart';
 
@@ -13,27 +14,12 @@ class VoxWriteApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const seed = Color(0xFF6657E8);
     return MaterialApp(
       title: 'VoxWrite',
       debugShowCheckedModeBanner: false,
       themeMode: ThemeMode.system,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: seed,
-          brightness: Brightness.light,
-        ),
-        useMaterial3: true,
-        scaffoldBackgroundColor: const Color(0xFFF7F7FA),
-        cardTheme: const CardThemeData(elevation: 0, margin: EdgeInsets.zero),
-      ),
-      darkTheme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: seed,
-          brightness: Brightness.dark,
-        ),
-        useMaterial3: true,
-      ),
+      theme: buildAppTheme(Brightness.light),
+      darkTheme: buildAppTheme(Brightness.dark),
       home: const _CloudApiKeyWarmup(
         child: ShortcutCoordinator(
           child: VoiceOverlayCoordinator(child: AppShell()),

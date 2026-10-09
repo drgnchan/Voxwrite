@@ -6,6 +6,7 @@ import '../../application/history_controller.dart';
 import '../../application/history_speech_controller.dart';
 import '../../domain/history_entry.dart';
 import '../../domain/voice_mode.dart';
+import '../widgets/page_layout.dart';
 
 class HistoryPage extends ConsumerStatefulWidget {
   const HistoryPage({super.key});
@@ -52,29 +53,19 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
   @override
   Widget build(BuildContext context) {
     final history = ref.watch(historyProvider);
-    return Padding(
-      padding: const EdgeInsets.all(32),
+    return PageFrame(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  '历史记录',
-                  style: Theme.of(context).textTheme.headlineMedium,
-                ),
-              ),
-              if (history.value?.isNotEmpty == true)
-                OutlinedButton.icon(
-                  onPressed: () => _clearHistory(context, ref),
-                  icon: const Icon(Icons.delete_sweep_outlined),
-                  label: const Text('清空'),
-                ),
-            ],
+          PageHeader(
+            title: '历史记录',
+            action: history.value?.isNotEmpty == true
+                ? TextButton(
+                    onPressed: () => _clearHistory(context, ref),
+                    child: const Text('清空'),
+                  )
+                : null,
           ),
-          const SizedBox(height: 8),
-          const Text('仅在本机保存转写和最终文本，原始音频不会进入历史记录。'),
           const SizedBox(height: 24),
           Expanded(
             child: history.when(
@@ -84,8 +75,8 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                   ? const _EmptyHistory()
                   : ListView.separated(
                       itemCount: entries.length,
-                      separatorBuilder: (_, _) => const SizedBox(height: 12),
-                      itemBuilder: (context, index) => _HistoryCard(
+                      separatorBuilder: (_, _) => const Divider(),
+                      itemBuilder: (context, index) => _HistoryItem(
                         entry: entries[index],
                         onDelete: () => ref
                             .read(historyProvider.notifier)
@@ -100,8 +91,8 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
   }
 }
 
-class _HistoryCard extends ConsumerWidget {
-  const _HistoryCard({required this.entry, required this.onDelete});
+class _HistoryItem extends ConsumerWidget {
+  const _HistoryItem({required this.entry, required this.onDelete});
 
   final HistoryEntry entry;
   final VoidCallback onDelete;
@@ -115,68 +106,49 @@ class _HistoryCard extends ConsumerWidget {
     final isPlaying =
         speech.entryId == entry.id &&
         speech.phase == HistorySpeechPhase.playing;
+    final theme = Theme.of(context);
+    final muted = theme.colorScheme.onSurfaceVariant;
 
     return LayoutBuilder(
       builder: (context, constraints) {
         final compact = constraints.maxWidth < 560;
-        return Card(
-          clipBehavior: Clip.antiAlias,
+        final actions = _HistoryActions(
+          entry: entry,
+          speech: speech,
+          isLoading: isLoading,
+          isPlaying: isPlaying,
+          onDelete: onDelete,
+        );
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6),
           child: Column(
             children: [
               ExpansionTile(
-                leading: CircleAvatar(
-                  child: Text(entry.mode.title.substring(0, 1)),
-                ),
                 title: SelectableText(entry.output),
-                subtitle: Text(
-                  '${entry.mode.title} · ${_formatTime(entry.createdAt)}',
+                subtitle: Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    '${entry.mode.title} · ${_formatTime(entry.createdAt)}',
+                    style: theme.textTheme.bodySmall?.copyWith(color: muted),
+                  ),
                 ),
-                trailing: compact
-                    ? null
-                    : _HistoryActions(
-                        entry: entry,
-                        speech: speech,
-                        isLoading: isLoading,
-                        isPlaying: isPlaying,
-                        onDelete: onDelete,
-                        showLabels: false,
-                      ),
-                childrenPadding: const EdgeInsets.fromLTRB(20, 0, 20, 18),
+                trailing: compact ? null : actions,
+                expandedAlignment: Alignment.centerLeft,
+                expandedCrossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      'ASR 原文',
-                      style: Theme.of(context).textTheme.labelLarge,
-                    ),
+                  Text(
+                    'ASR 原文',
+                    style: theme.textTheme.labelMedium?.copyWith(color: muted),
                   ),
                   const SizedBox(height: 6),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: SelectableText(entry.transcript),
+                  SelectableText(
+                    entry.transcript,
+                    style: theme.textTheme.bodyMedium?.copyWith(color: muted),
                   ),
                 ],
               ),
-              if (compact) ...[
-                const Divider(height: 1),
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  child: Align(
-                    alignment: Alignment.centerRight,
-                    child: _HistoryActions(
-                      entry: entry,
-                      speech: speech,
-                      isLoading: isLoading,
-                      isPlaying: isPlaying,
-                      onDelete: onDelete,
-                      showLabels: true,
-                    ),
-                  ),
-                ),
-              ],
+              if (compact)
+                Align(alignment: Alignment.centerRight, child: actions),
             ],
           ),
         );
@@ -198,7 +170,6 @@ class _HistoryActions extends ConsumerWidget {
     required this.isLoading,
     required this.isPlaying,
     required this.onDelete,
-    required this.showLabels,
   });
 
   final HistoryEntry entry;
@@ -206,31 +177,20 @@ class _HistoryActions extends ConsumerWidget {
   final bool isLoading;
   final bool isPlaying;
   final VoidCallback onDelete;
-  final bool showLabels;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final speechIcon = isLoading
         ? const SizedBox.square(
-            dimension: 18,
+            dimension: 16,
             child: CircularProgressIndicator(strokeWidth: 2),
           )
-        : Icon(
-            isPlaying ? Icons.stop_circle_outlined : Icons.volume_up_outlined,
-          );
-    return Wrap(
-      spacing: 2,
-      alignment: WrapAlignment.end,
-      crossAxisAlignment: WrapCrossAlignment.center,
+        : Icon(isPlaying ? Icons.stop_rounded : Icons.volume_up_outlined);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
         _button(
-          context: context,
           tooltip: isPlaying || isLoading ? '停止朗读' : '朗读最终文本',
-          label: isLoading
-              ? '生成中'
-              : isPlaying
-              ? '停止'
-              : '朗读',
           icon: speechIcon,
           onPressed: () async {
             try {
@@ -245,9 +205,7 @@ class _HistoryActions extends ConsumerWidget {
           },
         ),
         _button(
-          context: context,
           tooltip: '复制结果',
-          label: '复制',
           icon: const Icon(Icons.copy_outlined),
           onPressed: () async {
             await Clipboard.setData(ClipboardData(text: entry.output));
@@ -259,11 +217,8 @@ class _HistoryActions extends ConsumerWidget {
           },
         ),
         _button(
-          context: context,
           tooltip: '删除',
-          label: '删除',
           icon: const Icon(Icons.delete_outline),
-          isDestructive: true,
           onPressed: () async {
             if (speech.entryId == entry.id) {
               await ref.read(historySpeechProvider.notifier).stop();
@@ -279,29 +234,16 @@ class _HistoryActions extends ConsumerWidget {
   }
 
   Widget _button({
-    required BuildContext context,
     required String tooltip,
-    required String label,
     required Widget icon,
     required VoidCallback onPressed,
-    bool isDestructive = false,
   }) {
-    final color = isDestructive ? Theme.of(context).colorScheme.error : null;
-    if (!showLabels) {
-      return IconButton(
-        tooltip: tooltip,
-        color: color,
-        onPressed: onPressed,
-        icon: icon,
-      );
-    }
-    return TextButton.icon(
+    return IconButton(
+      tooltip: tooltip,
+      iconSize: 20,
+      visualDensity: VisualDensity.compact,
       onPressed: onPressed,
-      style: color == null
-          ? null
-          : TextButton.styleFrom(foregroundColor: color),
       icon: icon,
-      label: Text(label),
     );
   }
 }
@@ -311,20 +253,13 @@ class _EmptyHistory extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.history_rounded,
-            size: 52,
-            color: Theme.of(context).colorScheme.primary,
-          ),
-          const SizedBox(height: 16),
-          Text('还没有历史记录', style: Theme.of(context).textTheme.headlineSmall),
-          const SizedBox(height: 8),
-          const Text('完成的口述、翻译和问答会保存在本机。'),
-        ],
+      child: Text(
+        '还没有历史记录',
+        style: theme.textTheme.bodyMedium?.copyWith(
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
       ),
     );
   }

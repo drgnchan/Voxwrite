@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../application/runtime_settings.dart';
 import '../application/workflow_dependencies.dart';
 import '../infrastructure/providers/alibaba_qwen_tts_provider.dart';
+import 'app_theme.dart';
 
 const _processTextChannel = MethodChannel('dev.raymond.voxwrite/process_text');
 
@@ -88,14 +89,11 @@ class _AndroidProcessTextSpeechAppState
 
   @override
   Widget build(BuildContext context) {
-    const seed = Color(0xFF6657E8);
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       color: Colors.transparent,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: seed),
-        useMaterial3: true,
-      ),
+      theme: buildAppTheme(Brightness.light),
+      darkTheme: buildAppTheme(Brightness.dark),
       home: Scaffold(
         backgroundColor: Colors.transparent,
         body: SafeArea(

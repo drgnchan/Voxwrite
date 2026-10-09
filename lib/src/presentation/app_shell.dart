@@ -42,6 +42,7 @@ class _AppShellState extends State<AppShell> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     return LayoutBuilder(
       builder: (context, constraints) {
         final compact = constraints.maxWidth < 760;
@@ -49,29 +50,35 @@ class _AppShellState extends State<AppShell> {
           return Scaffold(
             appBar: AppBar(title: const _Brand()),
             body: _page,
-            bottomNavigationBar: NavigationBar(
-              selectedIndex: _section.index,
-              onDestinationSelected: (index) {
-                setState(() => _section = AppSection.values[index]);
-              },
-              destinations: [
-                for (final section in AppSection.values)
-                  NavigationDestination(
-                    icon: Icon(section.icon),
-                    label: section.label,
-                  ),
-              ],
+            bottomNavigationBar: DecoratedBox(
+              decoration: BoxDecoration(
+                border: Border(top: BorderSide(color: colors.outlineVariant)),
+              ),
+              child: NavigationBar(
+                selectedIndex: _section.index,
+                onDestinationSelected: (index) {
+                  setState(() => _section = AppSection.values[index]);
+                },
+                destinations: [
+                  for (final section in AppSection.values)
+                    NavigationDestination(
+                      icon: Icon(section.icon),
+                      label: section.label,
+                    ),
+                ],
+              ),
             ),
           );
         }
 
         return Scaffold(
           body: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Container(
-                width: 236,
-                color: Theme.of(context).colorScheme.surface,
-                padding: const EdgeInsets.fromLTRB(16, 28, 16, 20),
+                width: 208,
+                color: colors.surfaceContainerLow,
+                padding: const EdgeInsets.fromLTRB(12, 32, 12, 20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -79,10 +86,10 @@ class _AppShellState extends State<AppShell> {
                       padding: EdgeInsets.symmetric(horizontal: 12),
                       child: _Brand(),
                     ),
-                    const SizedBox(height: 28),
+                    const SizedBox(height: 32),
                     for (final section in AppSection.values)
                       Padding(
-                        padding: const EdgeInsets.only(bottom: 6),
+                        padding: const EdgeInsets.only(bottom: 2),
                         child: _NavButton(
                           selected: section == _section,
                           icon: section.icon,
@@ -94,7 +101,6 @@ class _AppShellState extends State<AppShell> {
                   ],
                 ),
               ),
-              const VerticalDivider(width: 1),
               Expanded(child: _page),
             ],
           ),
@@ -109,32 +115,14 @@ class _Brand extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          width: 34,
-          height: 34,
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.primary,
-            borderRadius: BorderRadius.circular(11),
-          ),
-          child: Icon(
-            Icons.graphic_eq_rounded,
-            color: Theme.of(context).colorScheme.onPrimary,
-          ),
-        ),
-        const SizedBox(width: 10),
-        Flexible(
-          child: Text(
-            'VoxWrite',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: Theme.of(
-              context,
-            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
-          ),
-        ),
-      ],
+    return Text(
+      'VoxWrite',
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+        fontWeight: FontWeight.w700,
+        letterSpacing: -0.2,
+      ),
     );
   }
 }
@@ -155,20 +143,36 @@ class _NavButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    return FilledButton.tonalIcon(
-      onPressed: onPressed,
-      icon: Icon(icon),
-      label: Align(alignment: Alignment.centerLeft, child: Text(label)),
-      style: FilledButton.styleFrom(
-        elevation: 0,
-        backgroundColor: selected
-            ? colors.secondaryContainer
-            : Colors.transparent,
-        foregroundColor: selected
-            ? colors.onSecondaryContainer
-            : colors.onSurfaceVariant,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    final foreground = selected ? colors.onSurface : colors.onSurfaceVariant;
+    const radius = BorderRadius.all(Radius.circular(8));
+    return Semantics(
+      button: true,
+      selected: selected,
+      child: Material(
+        color: selected ? colors.surfaceContainerHigh : Colors.transparent,
+        borderRadius: radius,
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: radius,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            child: Row(
+              children: [
+                Icon(icon, size: 20, color: foreground),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    label,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: foreground,
+                      fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

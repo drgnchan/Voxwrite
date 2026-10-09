@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../application/personal_dictionary.dart';
+import '../widgets/page_layout.dart';
 
 class DictionaryPage extends ConsumerWidget {
   const DictionaryPage({super.key});
@@ -43,30 +44,21 @@ class DictionaryPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final dictionary = ref.watch(personalDictionaryProvider);
 
-    return Padding(
-      padding: const EdgeInsets.all(32),
+    return PageFrame(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  '个人词典',
-                  style: Theme.of(context).textTheme.headlineMedium,
-                ),
-              ),
-              FilledButton.icon(
-                onPressed: dictionary.hasValue
-                    ? () => _addWord(context, ref)
-                    : null,
-                icon: const Icon(Icons.add),
-                label: const Text('添加词汇'),
-              ),
-            ],
+          PageHeader(
+            title: '个人词典',
+            description: '用于纠错和识别热词。',
+            action: TextButton.icon(
+              onPressed: dictionary.hasValue
+                  ? () => _addWord(context, ref)
+                  : null,
+              icon: const Icon(Icons.add, size: 18),
+              label: const Text('添加词汇'),
+            ),
           ),
-          const SizedBox(height: 8),
-          const Text('专有词会在文字整理时纠正同音字、大小写、空格和连字符，并为支持热词的 ASR 提供词表。'),
           const SizedBox(height: 24),
           Expanded(
             child: dictionary.when(
@@ -77,7 +69,7 @@ class DictionaryPage extends ConsumerWidget {
                   children: [
                     Text('无法读取个人词典：$error'),
                     const SizedBox(height: 12),
-                    OutlinedButton(
+                    TextButton(
                       onPressed: () =>
                           ref.invalidate(personalDictionaryProvider),
                       child: const Text('重试'),
@@ -86,21 +78,29 @@ class DictionaryPage extends ConsumerWidget {
                 ),
               ),
               data: (words) => words.isEmpty
-                  ? const Center(child: Text('还没有词汇'))
+                  ? Center(
+                      child: Text(
+                        '还没有词汇',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    )
                   : ListView.separated(
                       itemCount: words.length,
                       separatorBuilder: (_, _) => const Divider(),
                       itemBuilder: (context, index) {
                         final word = words[index];
                         return ListTile(
-                          leading: const Icon(Icons.spellcheck_rounded),
                           title: Text(word),
                           trailing: IconButton(
                             tooltip: '删除',
+                            iconSize: 18,
+                            visualDensity: VisualDensity.compact,
                             onPressed: () => ref
                                 .read(personalDictionaryProvider.notifier)
                                 .remove(word),
-                            icon: const Icon(Icons.delete_outline),
+                            icon: const Icon(Icons.close_rounded),
                           ),
                         );
                       },
